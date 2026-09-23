@@ -1,0 +1,23 @@
+[versions]
+fabricApi = "0.133.0+1.21.8"
+yacl = "3.6.5+1.21.8-fabric"
+modmenu = "14.0.0"
+javalin = "6.3.0"
+sqliteJdbc = "3.46.1.0"
+hikari = "5.1.0"
+jackson = "2.17.2"
+weupnp = "0.1.4"
+discordIpc = "1.2.1"
+javaJwt = "4.4.0"
+
+[libraries]
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi" }
+yacl = { module = "dev.isxander:yet-another-config-lib", version.ref = "yacl" }
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
+javalin = { module = "io.javalin:javalin", version.ref = "javalin" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+weupnp = { module = "org.bitlet:weupnp", version.ref = "weupnp" }
+discord-ipc = { module = "com.jagrosh:DiscordIPC", version.ref = "discordIpc" }
+java-jwt = { module = "com.auth0:java-jwt", version.ref = "javaJwt" }

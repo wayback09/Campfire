@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "campfire",
+  "version": "0.1.0",
+  "name": "Campfire",
+  "description": "Social + world-hosting mod (clean-room).",
+  "authors": ["wayback09"],
+  "license": "ARR",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.wayback09.campfire.fabric.CampfireFabric"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "fabric-api": "*",
+    "minecraft": "~1.21.8",
+    "java": ">=21"
+  }
+}
