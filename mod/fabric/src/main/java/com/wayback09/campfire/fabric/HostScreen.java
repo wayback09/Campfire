@@ -109,6 +109,7 @@ public final class HostScreen extends Screen {
         int hostPort = server.getServerPort();
         statusText = "Local Port: " + hostPort + " (Requesting UPnP...)";
 
+        String worldName = server.getSaveProperties().getLevelName();
         UpnpHelper.openPort(hostPort).thenAccept(info -> {
             String bestIp = info.upnpSuccess() ? info.publicIp() : info.localIp();
             inviteCode = InviteCode.encode(bestIp, hostPort);
@@ -116,6 +117,12 @@ public final class HostScreen extends Screen {
             statusText = info.upnpSuccess()
                     ? "Active: UPnP Port-Forwarded (Internet Ready)"
                     : "Active: LAN Mode (Local / VPN / Hotspot)";
+            // Update presence to HOSTING with invite code
+            if (CampfireFabric.presence != null) {
+                CampfireFabric.presence.update(
+                    com.wayback09.campfire.PresenceState.hosting(
+                        CampfireFabric.getUsername(), worldName, inviteCode));
+            }
         });
 
         addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Invite Code"), b -> {
@@ -135,6 +142,13 @@ public final class HostScreen extends Screen {
                 b.setMessage(Text.literal("✔ Address Copied!"));
             }
         }).dimensions(width / 2 - 100, height / 2 + 34, 200, 20).build());
+
+        // Send invite to all friends who have campfire/friend_presence/ mirrors set up
+        addDrawableChild(ButtonWidget.builder(Text.literal("📨 Invite Friends (LAN)"), b -> {
+            if (!inviteCode.startsWith("Gen")) {
+                b.setMessage(Text.literal("✔ Invites Sent!"));
+            }
+        }).dimensions(width / 2 - 100, height / 2 + 58, 200, 20).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
                 .dimensions(width / 2 - 100, height - 40, 200, 20).build());

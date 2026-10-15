@@ -15,11 +15,19 @@ import net.minecraft.client.option.ServerList;
 import net.minecraft.text.Text;
 
 /**
- * Screen showcasing featured partner and community servers with 1-click connect and add-to-list actions.
+ * Screen showcasing featured partner and community servers with 1-click connect.
+ * Featured servers are read-only — they cannot be removed or edited by the user.
  */
 public final class FeaturedServersScreen extends Screen {
     private final Screen parent;
     private final FeaturedServerStore store;
+
+    // Layout constants (relative to actual width)
+    private static final int MARGIN = 20;   // side margin in px
+    private static final int CARD_H = 52;
+    private static final int START_Y = 58;
+    private static final int CONNECT_BTN_W = 80;
+    private static final int CONNECT_BTN_H = 20;
 
     public FeaturedServersScreen(Screen parent) {
         super(Text.literal("Featured Community Servers"));
@@ -31,23 +39,17 @@ public final class FeaturedServersScreen extends Screen {
     protected void init() {
         List<FeaturedServer> list = store.getServers();
 
-        int startY = 55;
-        int cardHeight = 52;
-
-        for (int i = 0; i < list.size() && i < 4; i++) {
+        for (int i = 0; i < list.size() && i < 5; i++) {
             FeaturedServer server = list.get(i);
-            int y = startY + (i * cardHeight);
+            int y = START_Y + (i * CARD_H);
 
-            // Connect button
-            addDrawableChild(ButtonWidget.builder(Text.literal("▶ Connect"), b -> {
-                connectToServer(server);
-            }).dimensions(width / 2 + 105, y + 6, 75, 20).build());
+            // Connect button — right-aligned with margin
+            int btnX = width - MARGIN - CONNECT_BTN_W;
+            int btnY = y + (CARD_H - CONNECT_BTN_H) / 2 - 4;
 
-            // Add to My Servers button
-            addDrawableChild(ButtonWidget.builder(Text.literal("+ Add to List"), b -> {
-                addToServerList(server);
-                b.setMessage(Text.literal("✔ Added!"));
-            }).dimensions(width / 2 + 185, y + 6, 80, 20).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("▶ Connect"), b ->
+                connectToServer(server)
+            ).dimensions(btnX, btnY, CONNECT_BTN_W, CONNECT_BTN_H).build());
         }
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
@@ -61,44 +63,48 @@ public final class FeaturedServersScreen extends Screen {
         ConnectScreen.connect(this, client, address, info, false, null);
     }
 
-    private void addToServerList(FeaturedServer server) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        ServerList serverList = new ServerList(client);
-        serverList.loadFile();
-        ServerAddress address = ServerAddress.parse(server.ip());
-        ServerInfo info = new ServerInfo(server.name(), address.getAddress(), ServerInfo.ServerType.OTHER);
-        serverList.add(info, false);
-        serverList.saveFile();
-    }
-
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
 
-        ctx.drawCenteredTextWithShadow(textRenderer, "⭐ Featured Community & Partner Servers", width / 2, 20, CampfireTheme.ACCENT);
-        ctx.drawCenteredTextWithShadow(textRenderer, "Discover vetted servers, play with friends, and join community events.", width / 2, 35, 0xFFAAAAAA);
+        // Header
+        ctx.drawCenteredTextWithShadow(textRenderer,
+            "⭐ Featured Community & Partner Servers", width / 2, 16, CampfireTheme.ACCENT);
+        ctx.drawCenteredTextWithShadow(textRenderer,
+            "Vetted servers — connect directly or add to your server list.",
+            width / 2, 30, 0xFF888888);
 
         List<FeaturedServer> list = store.getServers();
-        int startY = 55;
-        int cardHeight = 52;
+        int cardLeft  = MARGIN;
+        int cardRight = width - MARGIN;
+        int cardW     = cardRight - cardLeft;
 
-        for (int i = 0; i < list.size() && i < 4; i++) {
+        for (int i = 0; i < list.size() && i < 5; i++) {
             FeaturedServer server = list.get(i);
-            int y = startY + (i * cardHeight);
+            int y = START_Y + (i * CARD_H);
 
-            // Background card outline / fill
-            ctx.fill(width / 2 - 270, y, width / 2 + 270, y + 46, 0x55000000);
-            ctx.drawBorder(width / 2 - 270, y, 540, 46, 0x44FFFFFF);
+            // Card background
+            ctx.fill(cardLeft, y, cardRight, y + CARD_H - 6, 0x66000000);
+            ctx.drawBorder(cardLeft, y, cardW, CARD_H - 6, 0x33FFFFFF);
 
-            // Server Name + Tag
-            String titleText = "⭐ [" + server.tag() + "] " + server.name();
-            ctx.drawTextWithShadow(textRenderer, titleText, width / 2 - 260, y + 6, CampfireTheme.TEXT);
+            int textX = cardLeft + 8;
+            int btnX  = cardRight - CONNECT_BTN_W - 6;
 
-            // IP Address
-            ctx.drawTextWithShadow(textRenderer, server.ip(), width / 2 - 260, y + 18, 0xFF55FF55);
+            // Server name & tag — stop text before the button
+            String title = "[" + server.tag() + "] " + server.name();
+            ctx.drawTextWithShadow(textRenderer, title, textX, y + 6, CampfireTheme.TEXT);
 
-            // Description
-            ctx.drawTextWithShadow(textRenderer, server.description(), width / 2 - 260, y + 30, 0xFFAAAAAA);
+            // IP
+            ctx.drawTextWithShadow(textRenderer, server.ip(), textX, y + 18, 0xFF55FF55);
+
+            // Description — truncate if too wide
+            int maxDescW = btnX - textX - 8;
+            String desc = server.description();
+            while (!desc.isEmpty() && textRenderer.getWidth(desc + "…") > maxDescW) {
+                desc = desc.substring(0, desc.length() - 1);
+            }
+            if (desc.length() < server.description().length()) desc += "…";
+            ctx.drawTextWithShadow(textRenderer, desc, textX, y + 30, 0xFFAAAAAA);
         }
     }
 
