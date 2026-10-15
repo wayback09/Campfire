@@ -1,0 +1,31 @@
+# Gradle and Loom build directories
+.gradle/
+build/
+**/build/
+out/
+bin/
+
+# Loom runtime directory
+run/
+.fabric/
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# In-game runtime data
+/campfire/
+/screenshots/
+/logs/
+/crash-reports/
+

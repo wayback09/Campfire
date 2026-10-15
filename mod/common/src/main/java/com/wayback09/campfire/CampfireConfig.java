@@ -1,7 +1,7 @@
 // Pure-Java, zero-dependency config model. YACL binds to this in mod:fabric.
 package com.wayback09.campfire;
 
-/** Author: wayback09. */
+/** Campfire configuration model. */
 public final class CampfireConfig {
     public boolean appearOffline = false;
     public boolean shareActivity = true;

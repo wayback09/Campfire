@@ -9,10 +9,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Author: wayback09.
- * Local social + signaling server (Option B). Zero deps, runs on localhost.
+ * Local social + signaling server. Zero deps, runs on localhost.
  * Endpoints: GET /health, POST /tickets (host creates), GET /tickets/{code} (guest redeems).
- * Friends/DM persistence (SQLite) lands in the next step; tickets unblock hosting now.
  */
 public final class SocialServer {
     private final HttpServer http;

@@ -8,7 +8,7 @@ import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
-/** Author: wayback09. Settings via YACL — no custom config GUI. */
+/** Settings via YACL. */
 public final class CampfireSettings {
     private CampfireSettings() {}
 

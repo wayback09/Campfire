@@ -1,6 +1,5 @@
 # Campfire libraries (ready-made, no reinventing)
 
-Author: wayback09
 Principle: vanilla + mature Fabric-ecosystem libs. No Essential-owned libs
 (Elementa, Vigilance, KDiscordIPC) — keeps clean-room intact and stays Java.
 

@@ -4,7 +4,7 @@ package com.wayback09.campfire;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Author: wayback09. */
+/** Invite ticket model. */
 public record InviteTicket(String code, UUID hostUuid, Instant expiresAt, int relaySlot) {
     public boolean expired() {
         return Instant.now().isAfter(expiresAt);

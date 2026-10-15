@@ -1,6 +1,5 @@
 # Campfire protocol (own design, v1 draft)
 
-Author: wayback09
 
 - Auth: Mojang UUID + session token -> local JWT (own, not Essential infra).
 - Social REST: /friends, /groups, /messages. WS: presence, typing, invites.

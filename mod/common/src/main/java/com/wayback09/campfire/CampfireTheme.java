@@ -1,7 +1,7 @@
 // Pure-Java, zero-dependency. Compiles with plain javac. No MC classes here.
 package com.wayback09.campfire;
 
-/** Author: wayback09. Campfire Ember theme tokens (see docs/theme.md). */
+/** Campfire Ember theme tokens. */
 public final class CampfireTheme {
     private CampfireTheme() {}
     public static final int BG = 0xFF1A1512;

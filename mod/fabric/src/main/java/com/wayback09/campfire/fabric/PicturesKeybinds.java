@@ -6,7 +6,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
-/** Author: wayback09. */
+/** Keybind registration for in-game pictures. */
 public final class PicturesKeybinds {
     private PicturesKeybinds() {}
 

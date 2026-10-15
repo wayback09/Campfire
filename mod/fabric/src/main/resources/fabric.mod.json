@@ -1,14 +1,17 @@
 {
   "schemaVersion": 1,
   "id": "campfire",
-  "version": "0.1.0",
+  "version": "${version}",
   "name": "Campfire",
-  "description": "Social + world-hosting mod (clean-room).",
+  "description": "Peer-to-peer world hosting and social mod.",
   "authors": ["wayback09"],
-  "license": "ARR",
+  "license": "GPL-3.0",
+  "icon": "assets/campfire/icon.png",
+
   "environment": "client",
   "entrypoints": {
-    "client": ["com.wayback09.campfire.fabric.CampfireFabric"]
+    "client": ["com.wayback09.campfire.fabric.CampfireFabric"],
+    "modmenu": ["com.wayback09.campfire.fabric.CampfireModMenu"]
   },
   "depends": {
     "fabricloader": ">=0.16.14",

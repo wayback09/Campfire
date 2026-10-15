@@ -2,9 +2,12 @@ plugins {
     java
 }
 
+val modVersion = project.findProperty("mod_version") ?: "0.1.0"
+val mcVersion = project.findProperty("minecraft_version") ?: "1.21.8"
+
 allprojects {
     group = "com.wayback09.campfire"
-    version = "0.1.0"
+    version = "$modVersion+$mcVersion"
 }
 
 subprojects {
@@ -13,3 +16,4 @@ subprojects {
         toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
     }
 }
+

@@ -1,6 +1,6 @@
 [versions]
 fabricApi = "0.133.0+1.21.8"
-yacl = "3.6.5+1.21.8-fabric"
+yacl = "3.6.5+1.21.4-fabric"
 modmenu = "14.0.0"
 javalin = "6.3.0"
 sqliteJdbc = "3.46.1.0"

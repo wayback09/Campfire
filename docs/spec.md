@@ -1,6 +1,5 @@
 # Campfire spec (v1, Option B, no VPS)
 
-Author: wayback09
 
 ## Scope
 - Fabric 1.21.x first, NeoForge later.

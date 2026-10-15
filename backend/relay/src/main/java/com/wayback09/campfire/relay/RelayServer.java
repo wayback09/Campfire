@@ -6,8 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
- * Author: wayback09.
- * Local TCP relay (Option B). Host + guest both dial out to the relay,
+ * Local TCP relay. Host + guest both dial out to the relay,
  * relay splices bytes both ways. Works behind NAT with zero port-forwarding.
  * Usage: RelayServer <listenPort>  (pairs arrive in twos: first=host, second=guest).
  */

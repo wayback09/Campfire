@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Author: wayback09. */
+/** Local screenshot store index. */
 public final class ScreenshotStore {
     public record Entry(Path file, Instant takenAt) {}
 
