@@ -1,13 +1,17 @@
 package com.wayback09.campfire.fabric;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.GameMenuScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
+import net.minecraft.client.gui.screen.multiplayer.MultiplayerServerListWidget;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 
 /**
@@ -16,7 +20,8 @@ import net.minecraft.text.Text;
  *
  * Featured servers are injected into the vanilla server list via BEFORE_INIT
  * so they appear natively in the multiplayer screen list.
- * The ⭐ button toggles a "featured only" filter.
+ * Featured partner servers are protected: Edit and Delete buttons are locked/disabled
+ * whenever a featured server is selected.
  */
 public final class CampfireMenuHooks {
     private static final int SIDEBAR_WIDTH = 104;
@@ -47,8 +52,50 @@ public final class CampfireMenuHooks {
                 injectSidebar(client, screen, scaledWidth, scaledHeight, true);
             } else if (screen instanceof MultiplayerScreen ms) {
                 injectMultiplayerButtons(client, ms, scaledWidth);
+
+                // Lock Edit and Delete buttons whenever a featured partner server is selected
+                ScreenEvents.afterRender(screen).register((scr, drawContext, mouseX, mouseY, delta) -> {
+                    if (scr instanceof MultiplayerScreen currentMs) {
+                        lockFeaturedButtons(currentMs);
+                    }
+                });
+
+                // Prevent Delete key from removing a featured server
+                ScreenKeyboardEvents.allowKeyPress(screen).register((scr, key, scancode, modifiers) -> {
+                    if (key == 261 && scr instanceof MultiplayerScreen currentMs) { // 261 = GLFW_KEY_DELETE
+                        return !isFeaturedSelected(currentMs);
+                    }
+                    return true;
+                });
             }
         });
+    }
+
+    private static boolean isFeaturedSelected(MultiplayerScreen ms) {
+        for (Element child : ms.children()) {
+            if (child instanceof MultiplayerServerListWidget widget) {
+                MultiplayerServerListWidget.Entry entry = widget.getSelectedOrNull();
+                if (entry instanceof MultiplayerServerListWidget.ServerEntry se) {
+                    return FeaturedServerInjector.isFeatured(se.getServer());
+                }
+                break;
+            }
+        }
+        return false;
+    }
+
+    private static void lockFeaturedButtons(MultiplayerScreen ms) {
+        if (!isFeaturedSelected(ms)) return;
+
+        for (ClickableWidget widget : Screens.getButtons(ms)) {
+            if (widget instanceof ButtonWidget btn) {
+                String text = btn.getMessage().getString().toLowerCase();
+                // If this is the Edit or Delete button, keep it disabled
+                if (text.contains("edit") || text.contains("delete")) {
+                    btn.active = false;
+                }
+            }
+        }
     }
 
     private static void injectMultiplayerButtons(MinecraftClient client, MultiplayerScreen screen, int scaledWidth) {

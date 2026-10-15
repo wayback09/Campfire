@@ -29,25 +29,11 @@ public final class FeaturedServerStore {
 
     private static final List<FeaturedServer> BUILTIN_DEFAULTS = List.of(
         new FeaturedServer(
-            "campfire_smp",
-            "Campfire Community SMP",
-            "play.campfiremc.net",
-            "PARTNER",
-            "Official community survival server with free-tier P2P world events."
-        ),
-        new FeaturedServer(
             "islanders_mc",
             "IslandersMC",
             "IslandersMC.net",
             "PARTNER",
             "Island survival, community events, and Campfire P2P integration."
-        ),
-        new FeaturedServer(
-            "creator_network",
-            "Creator Playground",
-            "hub.creatorsmp.net",
-            "FEATURED",
-            "Minigames, creative building, and custom community events."
         )
     );
 
@@ -79,10 +65,15 @@ public final class FeaturedServerStore {
         if (Files.exists(cachePath)) {
             try {
                 String content = Files.readString(cachePath, StandardCharsets.UTF_8);
-                parseInto(content);
-                if (!servers.isEmpty()) {
-                    refreshRemoteAsync();
-                    return;
+                // If cache has old placeholder servers, purge it
+                if (content.contains("Campfire Community SMP") || content.contains("Creator Playground")) {
+                    Files.deleteIfExists(cachePath);
+                } else {
+                    parseInto(content);
+                    if (!servers.isEmpty()) {
+                        refreshRemoteAsync();
+                        return;
+                    }
                 }
             } catch (Exception ignored) {}
         }

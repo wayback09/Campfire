@@ -1,23 +1,9 @@
 [
   {
-    "id": "campfire_smp",
-    "name": "Campfire Community SMP",
-    "ip": "play.campfiremc.net",
-    "tag": "PARTNER",
-    "description": "Official community survival server with free-tier P2P world events."
-  },
-  {
     "id": "islanders_mc",
     "name": "IslandersMC",
     "ip": "IslandersMC.net",
     "tag": "PARTNER",
     "description": "Island survival, community events, and Campfire P2P integration."
-  },
-  {
-    "id": "creator_network",
-    "name": "Creator Playground",
-    "ip": "hub.creatorsmp.net",
-    "tag": "FEATURED",
-    "description": "Minigames, creative building, and custom community events."
   }
 ]
