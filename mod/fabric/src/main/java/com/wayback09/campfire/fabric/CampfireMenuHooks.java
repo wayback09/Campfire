@@ -28,22 +28,23 @@ public final class CampfireMenuHooks {
             } else if (screen instanceof GameMenuScreen) {
                 injectSidebar(client, screen, scaledWidth, scaledHeight, true);
             } else if (screen instanceof MultiplayerScreen) {
-                // Add "⭐ Featured Servers" button at top right
-                Screens.getButtons(screen).add(
-                    ButtonWidget.builder(Text.literal("⭐ Featured Servers"), b -> {
-                        client.setScreen(new FeaturedServersScreen(screen));
-                    }).dimensions(scaledWidth - 142, 8, 132, 20).build()
-                );
-
-                // Add "Join with Code" button on Multiplayer Screen
+                // Top-left: "🔥 Join with Code" (doesn't collide with any vanilla buttons)
                 Screens.getButtons(screen).add(
                     ButtonWidget.builder(Text.literal("🔥 Join with Code"), b -> {
                         client.setScreen(new JoinScreen(screen));
-                    }).dimensions(scaledWidth / 2 + 106, scaledHeight - 52, 100, 20).build()
+                    }).dimensions(10, 8, 115, 20).build()
+                );
+
+                // Top-right: "⭐ Featured Servers"
+                Screens.getButtons(screen).add(
+                    ButtonWidget.builder(Text.literal("⭐ Featured Servers"), b -> {
+                        client.setScreen(new FeaturedServersScreen(screen));
+                    }).dimensions(scaledWidth - 135, 8, 125, 20).build()
                 );
             }
         });
     }
+
 
 
     private static void injectSidebar(MinecraftClient client, Screen screen, int width, int height, boolean inGame) {
