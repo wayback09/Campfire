@@ -1,102 +1,185 @@
 package com.wayback09.campfire;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Manages loading and caching of featured and community partner servers.
+ * Loads featured partner servers from (in priority order):
+ *  1. Remote URL (fetched async in background, updates cache)
+ *  2. Local user/admin JSON: .minecraft/campfire/featured_servers.json
+ *  3. Bundled resource inside the mod JAR: /campfire/featured_servers.json
+ *  4. Built-in fallback defaults (ensures servers always show up)
+ *
+ * To add or remove partners dynamically, update the remote JSON at REMOTE_URL
+ * or edit .minecraft/campfire/featured_servers.json.
  */
 public final class FeaturedServerStore {
-    private final Path storagePath;
+    /** Default remote endpoint for the featured server list. */
+    public static final String DEFAULT_REMOTE_URL =
+        "https://raw.githubusercontent.com/wayback09/campfire/main/campfire/featured_servers.json";
+
+    private static final List<FeaturedServer> BUILTIN_DEFAULTS = List.of(
+        new FeaturedServer(
+            "campfire_smp",
+            "Campfire Community SMP",
+            "play.campfiremc.net",
+            "PARTNER",
+            "Official community survival server with free-tier P2P world events."
+        ),
+        new FeaturedServer(
+            "islanders_mc",
+            "IslandersMC",
+            "IslandersMC.net",
+            "PARTNER",
+            "Island survival, community events, and Campfire P2P integration."
+        ),
+        new FeaturedServer(
+            "creator_network",
+            "Creator Playground",
+            "hub.creatorsmp.net",
+            "FEATURED",
+            "Minigames, creative building, and custom community events."
+        )
+    );
+
+    private final Path cachePath;
+    private final String remoteUrl;
     private final List<FeaturedServer> servers = new ArrayList<>();
 
     public FeaturedServerStore(Path runDir) {
-        this.storagePath = runDir.resolve("campfire").resolve("featured_servers.json");
+        this.cachePath = runDir.resolve("campfire/featured_servers.json");
+        this.remoteUrl = System.getProperty("campfire.featured_servers_url", DEFAULT_REMOTE_URL);
         load();
     }
 
     public synchronized List<FeaturedServer> getServers() {
+        if (servers.isEmpty()) {
+            return Collections.unmodifiableList(BUILTIN_DEFAULTS);
+        }
         return Collections.unmodifiableList(new ArrayList<>(servers));
     }
 
+    /**
+     * Loads servers from cache, bundled resource, or built-in defaults,
+     * then kicks off an async remote refresh.
+     */
     public synchronized void load() {
         servers.clear();
-        if (!Files.exists(storagePath)) {
-            // Populate defaults
-            servers.add(new FeaturedServer(
-                "campfire_smp",
-                "Campfire Community SMP",
-                "play.campfiremc.net",
-                "PARTNER",
-                "Official community survival server with free-tier P2P world events."
-            ));
-            servers.add(new FeaturedServer(
-                "islanders_mc",
-                "IslandersMC",
-                "IslandersMC.net",
-                "PARTNER",
-                "Island survival, community events, and Campfire P2P integration."
-            ));
-            servers.add(new FeaturedServer(
-                "creator_network",
-                "Creator Playground",
-                "hub.creatorsmp.net",
-                "FEATURED",
-                "Minigames, creative building, and custom community events."
-            ));
-            save();
-            return;
+
+        // 1. Try local cache first (allows user/admin customization without touching mod)
+        if (Files.exists(cachePath)) {
+            try {
+                String content = Files.readString(cachePath, StandardCharsets.UTF_8);
+                parseInto(content);
+                if (!servers.isEmpty()) {
+                    refreshRemoteAsync();
+                    return;
+                }
+            } catch (Exception ignored) {}
         }
 
-        try {
-            String json = Files.readString(storagePath, StandardCharsets.UTF_8);
-            // Lightweight line-by-line / block parser to avoid external JSON dependencies in common
-            parseJson(json);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public synchronized void save() {
-        try {
-            Files.createDirectories(storagePath.getParent());
-            StringBuilder sb = new StringBuilder("[\n");
-            for (int i = 0; i < servers.size(); i++) {
-                FeaturedServer s = servers.get(i);
-                sb.append("  {\n");
-                sb.append("    \"id\": \"").append(escape(s.id())).append("\",\n");
-                sb.append("    \"name\": \"").append(escape(s.name())).append("\",\n");
-                sb.append("    \"ip\": \"").append(escape(s.ip())).append("\",\n");
-                sb.append("    \"tag\": \"").append(escape(s.tag())).append("\",\n");
-                sb.append("    \"description\": \"").append(escape(s.description())).append("\"\n");
-                sb.append("  }").append(i < servers.size() - 1 ? "," : "").append("\n");
+        // 2. Fall back to bundled resource inside JAR
+        String bundled = loadBundled();
+        if (bundled != null && !bundled.isBlank()) {
+            parseInto(bundled);
+            if (!servers.isEmpty()) {
+                writeCache(bundled); // seed the local cache for user editing
+                refreshRemoteAsync();
+                return;
             }
-            sb.append("]\n");
-            Files.writeString(storagePath, sb.toString(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+
+        // 3. Fall back to built-in defaults so servers ALWAYS show up
+        servers.addAll(BUILTIN_DEFAULTS);
+        writeCache(exportJson(servers));
+
+        // 4. Try remote update in background
+        refreshRemoteAsync();
     }
 
-    private void parseJson(String json) {
+    /**
+     * Fetches the remote list in the background and updates the cache.
+     */
+    public void refreshRemoteAsync() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) URI.create(remoteUrl).toURL().openConnection();
+                conn.setConnectTimeout(4000);
+                conn.setReadTimeout(6000);
+                conn.setRequestProperty("User-Agent", "Campfire-Mod/1.0");
+                if (conn.getResponseCode() == 200) {
+                    String json = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                    List<FeaturedServer> parsed = new ArrayList<>();
+                    parseList(json, parsed);
+                    if (!parsed.isEmpty()) {
+                        writeCache(json);
+                        synchronized (FeaturedServerStore.this) {
+                            servers.clear();
+                            servers.addAll(parsed);
+                        }
+                    }
+                }
+                conn.disconnect();
+            } catch (Exception ignored) {
+                // Network unavailable or URL not yet created — keeps existing cache / bundled
+            }
+        });
+    }
+
+    private String loadBundled() {
+        String[] paths = {"/campfire/featured_servers.json", "campfire/featured_servers.json"};
+        for (String p : paths) {
+            try (InputStream in = FeaturedServerStore.class.getResourceAsStream(p)) {
+                if (in != null) return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException ignored) {}
+
+            try (InputStream in = FeaturedServerStore.class.getClassLoader().getResourceAsStream(p.startsWith("/") ? p.substring(1) : p)) {
+                if (in != null) return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException ignored) {}
+
+            try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(p.startsWith("/") ? p.substring(1) : p)) {
+                if (in != null) return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException ignored) {}
+        }
+        return null;
+    }
+
+    private void writeCache(String json) {
+        try {
+            if (cachePath.getParent() != null) {
+                Files.createDirectories(cachePath.getParent());
+            }
+            Files.writeString(cachePath, json, StandardCharsets.UTF_8);
+        } catch (IOException ignored) {}
+    }
+
+    private void parseInto(String json) {
+        parseList(json, servers);
+    }
+
+    private static void parseList(String json, List<FeaturedServer> target) {
+        if (json == null || json.isBlank()) return;
         String[] blocks = json.split("\\{");
         for (String block : blocks) {
             if (!block.contains("name") || !block.contains("ip")) continue;
-            String id = extract(block, "id");
-            String name = extract(block, "name");
-            String ip = extract(block, "ip");
-            String tag = extract(block, "tag");
-            String desc = extract(block, "description");
+            String id   = extractStr(block, "id");
+            String name = extractStr(block, "name");
+            String ip   = extractStr(block, "ip");
+            String tag  = extractStr(block, "tag");
+            String desc = extractStr(block, "description");
             if (!name.isBlank() && !ip.isBlank()) {
-                servers.add(new FeaturedServer(
-                    id.isBlank() ? "srv_" + servers.size() : id,
-                    name,
-                    ip,
+                target.add(new FeaturedServer(
+                    id.isBlank() ? "srv_" + target.size() : id,
+                    name, ip,
                     tag.isBlank() ? "FEATURED" : tag,
                     desc
                 ));
@@ -104,22 +187,34 @@ public final class FeaturedServerStore {
         }
     }
 
-    private String extract(String block, String key) {
-        String pattern = "\"" + key + "\":\\s*\"";
-        int idx = block.indexOf(pattern);
-        if (idx == -1) {
-            pattern = "\"" + key + "\": \"";
-            idx = block.indexOf(pattern);
-            if (idx == -1) return "";
+    private static String extractStr(String block, String key) {
+        for (String pattern : new String[]{"\"" + key + "\": \"", "\"" + key + "\":\"", "\"" + key + "\":"}) {
+            int idx = block.indexOf(pattern);
+            if (idx == -1) continue;
+            int s = idx + pattern.length();
+            while (s < block.length() && (block.charAt(s) == ' ' || block.charAt(s) == '"')) {
+                if (block.charAt(s) == '"') { s++; break; }
+                s++;
+            }
+            int e = block.indexOf("\"", s);
+            return e == -1 ? "" : block.substring(s, e);
         }
-        int start = idx + pattern.length();
-        int end = block.indexOf("\"", start);
-        if (end == -1) return "";
-        return block.substring(start, end).replace("\\\"", "\"");
+        return "";
     }
 
-    private String escape(String s) {
-        if (s == null) return "";
-        return s.replace("\"", "\\\"");
+    private static String exportJson(List<FeaturedServer> list) {
+        StringBuilder sb = new StringBuilder("[\n");
+        for (int i = 0; i < list.size(); i++) {
+            FeaturedServer s = list.get(i);
+            sb.append("  {\n");
+            sb.append("    \"id\": \"").append(s.id()).append("\",\n");
+            sb.append("    \"name\": \"").append(s.name()).append("\",\n");
+            sb.append("    \"ip\": \"").append(s.ip()).append("\",\n");
+            sb.append("    \"tag\": \"").append(s.tag()).append("\",\n");
+            sb.append("    \"description\": \"").append(s.description()).append("\"\n");
+            sb.append("  }").append(i < list.size() - 1 ? ",\n" : "\n");
+        }
+        sb.append("]\n");
+        return sb.toString();
     }
 }

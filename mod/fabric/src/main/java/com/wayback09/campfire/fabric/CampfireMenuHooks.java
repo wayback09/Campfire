@@ -15,7 +15,7 @@ import net.minecraft.text.Text;
  * the Join with Code + Featured filter toggle onto MultiplayerScreen.
  *
  * Featured servers are injected into the vanilla server list via BEFORE_INIT
- * so they appear as real entries in the multiplayer screen list.
+ * so they appear natively in the multiplayer screen list.
  * The ⭐ button toggles a "featured only" filter.
  */
 public final class CampfireMenuHooks {
@@ -29,21 +29,23 @@ public final class CampfireMenuHooks {
     private CampfireMenuHooks() {}
 
     public static void register() {
-        // BEFORE_INIT: inject featured servers into servers.dat so the vanilla widget picks them up
+        // BEFORE_INIT: write featured servers to servers.dat right before MultiplayerScreen
+        // initializes and reads servers.dat from disk.
         ScreenEvents.BEFORE_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof MultiplayerScreen) {
-                FeaturedServerInjector.injectToFile(client);
+                FeaturedServerInjector.syncToServerList(client);
             }
         });
 
-        // AFTER_INIT: restore servers.dat (featured entries already in widget memory), then add buttons
+        // AFTER_INIT: add buttons and sidebar
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof TitleScreen) {
+                // Pre-seed servers.dat on title screen so it is ready before user clicks multiplayer
+                FeaturedServerInjector.syncToServerList(client);
                 injectSidebar(client, screen, scaledWidth, scaledHeight, false);
             } else if (screen instanceof GameMenuScreen) {
                 injectSidebar(client, screen, scaledWidth, scaledHeight, true);
             } else if (screen instanceof MultiplayerScreen ms) {
-                FeaturedServerInjector.restoreFile(client);
                 injectMultiplayerButtons(client, ms, scaledWidth);
             }
         });
@@ -57,12 +59,17 @@ public final class CampfireMenuHooks {
             ).dimensions(10, 8, 115, 20).build()
         );
 
-        // Top-right: filter toggle — "⭐ Featured Servers" / "✦ Featured Only"
+        // Top-right: filter toggle — "⭐ Featured Servers" / "✦ Featured Only  ✕"
         String label = filterFeaturedOnly ? "✦ Featured Only  ✕" : "⭐ Featured Servers";
         Screens.getButtons(screen).add(
             ButtonWidget.builder(Text.literal(label), b -> {
                 filterFeaturedOnly = !filterFeaturedOnly;
-                // Reopen to re-run BEFORE_INIT with updated filter flag
+                if (!filterFeaturedOnly) {
+                    FeaturedServerInjector.restoreUserServers(client);
+                } else {
+                    FeaturedServerInjector.syncToServerList(client);
+                }
+                // Reload multiplayer screen with the filter applied
                 client.setScreen(new MultiplayerScreen(null));
             }).dimensions(scaledWidth - 135, 8, 125, 20).build()
         );
