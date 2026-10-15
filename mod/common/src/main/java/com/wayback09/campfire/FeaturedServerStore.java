@@ -36,6 +36,13 @@ public final class FeaturedServerStore {
                 "Official community survival server with free-tier P2P world events."
             ));
             servers.add(new FeaturedServer(
+                "islanders_mc",
+                "IslandersMC",
+                "IslandersMC.net",
+                "PARTNER",
+                "Island survival, community events, and Campfire P2P integration."
+            ));
+            servers.add(new FeaturedServer(
                 "creator_network",
                 "Creator Playground",
                 "hub.creatorsmp.net",
