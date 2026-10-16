@@ -18,7 +18,6 @@
 - **P2P World Hosting**: Open any singleplayer world to friends over the internet or LAN. Automatically forwards ports via UPnP and generates compact invite codes (`CAMP-XXXXX-XXXXX`).
 - **Friends & Live Presence**: Track friends' real-time in-game status (*In Menu, Singleplayer, Hosting, Multiplayer*) with Mojang username verification and one-click join or invite actions powered by a serverless Cloudflare Worker backend.
 - **Screenshot HUD Toast & Clipboard Copy**: In-game toast upon taking a screenshot with one-click **Copy Image** directly to the OS clipboard (ready to paste in Discord) or **View** in the full gallery.
-- **Integrated Sidebar**: Sleek right-hand sidebar accessible from both the Title Screen and the in-game Pause Menu.
 
 ---
 
