@@ -13,7 +13,7 @@ public final class ScreenshotCapture {
     public static void register(ScreenshotStore store, CampfireConfig config) {
         try {
             Files.createDirectories(store.dir());
-            var dir = MinecraftClient.getInstance().runDirectory.toPath().resolve("screenshots");
+            var dir = store.dir();
             if (Files.exists(dir)) {
                 try (var stream = Files.list(dir)) {
                     stream.filter(p -> p.toString().endsWith(".png")).forEach(store::add);
@@ -23,7 +23,7 @@ public final class ScreenshotCapture {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client == null || !config.screenshotPreview) return;
-            var dir = MinecraftClient.getInstance().runDirectory.toPath().resolve("screenshots");
+            var dir = store.dir();
             try (var stream = Files.list(dir)) {
                 stream.filter(p -> p.toString().endsWith(".png")).forEach(p -> {
                     boolean known = store.list().stream().anyMatch(e -> e.file().equals(p));
