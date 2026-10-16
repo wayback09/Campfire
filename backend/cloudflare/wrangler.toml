@@ -1,0 +1,8 @@
+name = "campfire-social"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# KV Namespace binding for presence, friends, and offline invite queue
+[[kv_namespaces]]
+binding = "CAMPFIRE_KV"
+id = "YOUR_KV_NAMESPACE_ID" # Run: npx wrangler kv:namespace create CAMPFIRE_KV

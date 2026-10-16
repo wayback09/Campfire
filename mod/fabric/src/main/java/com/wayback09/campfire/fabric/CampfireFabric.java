@@ -36,7 +36,7 @@ public final class CampfireFabric implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (++tickCounter[0] < 40) return;
             tickCounter[0] = 0;
-            var invite = presence.pollPendingInvite();
+            var invite = presence.pollPendingInvite(getUsername());
             if (invite != null) {
                 InviteToast.show(client, invite);
             }
