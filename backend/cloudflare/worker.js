@@ -38,7 +38,11 @@ export default {
       if (!username) return json({ error: "Missing username" }, corsHeaders, 400);
 
       try {
-        const mojangRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`);
+        const mojangRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`, {
+          headers: {
+            "User-Agent": "Campfire-Mod/1.0 (wayback09)"
+          }
+        });
         if (mojangRes.status === 204 || mojangRes.status === 404) {
           return json({ found: false, error: "Player does not exist on Minecraft" }, corsHeaders, 404);
         }

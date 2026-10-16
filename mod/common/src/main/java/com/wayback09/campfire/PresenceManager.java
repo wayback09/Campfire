@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
  * Configurable via System.getProperty("campfire.social_url", "http://127.0.0.1:8090").
  */
 public final class PresenceManager {
-    public static final String DEFAULT_URL = "http://127.0.0.1:8090";
+    public static final String DEFAULT_URL = "https://campfire-social.wayback145b.workers.dev";
 
     private final Path presencePath;
     private final Path pendingInvitePath;
