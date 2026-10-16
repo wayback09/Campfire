@@ -143,10 +143,25 @@ public final class HostScreen extends Screen {
             }
         }).dimensions(width / 2 - 100, height / 2 + 34, 200, 20).build());
 
-        // Send invite to all friends who have campfire/friend_presence/ mirrors set up
-        addDrawableChild(ButtonWidget.builder(Text.literal("📨 Invite Friends (LAN)"), b -> {
-            if (!inviteCode.startsWith("Gen")) {
-                b.setMessage(Text.literal("✔ Invites Sent!"));
+        // Send invite to all friends via Cloudflare / Social backend
+        addDrawableChild(ButtonWidget.builder(Text.literal("📨 Invite All Friends"), b -> {
+            if (!inviteCode.startsWith("Gen") && CampfireFabric.presence != null) {
+                var gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
+                java.nio.file.Path friendsFile = gameDir.resolve("campfire/friends.json");
+                int sent = 0;
+                if (java.nio.file.Files.exists(friendsFile)) {
+                    try {
+                        for (String friend : java.nio.file.Files.readAllLines(friendsFile)) {
+                            String f = friend.trim();
+                            if (!f.isEmpty()) {
+                                CampfireFabric.presence.sendNetworkInvite(
+                                    CampfireFabric.getUsername(), f, inviteCode, worldName);
+                                sent++;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+                b.setMessage(Text.literal(sent > 0 ? "✔ Sent to " + sent + " Friends!" : "No friends found (add in Social)"));
             }
         }).dimensions(width / 2 - 100, height / 2 + 58, 200, 20).build());
 

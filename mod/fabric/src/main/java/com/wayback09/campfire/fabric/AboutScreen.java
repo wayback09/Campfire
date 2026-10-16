@@ -36,9 +36,17 @@ public final class AboutScreen extends Screen {
 
         MinecraftClient mc = MinecraftClient.getInstance();
         String username = mc.getSession() != null ? mc.getSession().getUsername() : "Player";
+        String modVer = net.fabricmc.loader.api.FabricLoader.getInstance()
+            .getModContainer("campfire")
+            .map(c -> c.getMetadata().getVersion().getFriendlyString())
+            .orElse("0.1.0");
+        String mcVer = net.fabricmc.loader.api.FabricLoader.getInstance()
+            .getModContainer("minecraft")
+            .map(c -> c.getMetadata().getVersion().getFriendlyString())
+            .orElse("1.21.x");
 
         ctx.drawCenteredTextWithShadow(textRenderer, "🔥 Campfire", width / 2, height / 2 - 50, CampfireTheme.ACCENT);
-        ctx.drawCenteredTextWithShadow(textRenderer, "Version 0.1.0 (Fabric 1.21.8)", width / 2, height / 2 - 35, CampfireTheme.TEXT);
+        ctx.drawCenteredTextWithShadow(textRenderer, "Version " + modVer + " (MC " + mcVer + ")", width / 2, height / 2 - 35, CampfireTheme.TEXT);
         ctx.drawCenteredTextWithShadow(textRenderer, "Signed in as: " + username, width / 2, height / 2 - 15, 0xFF55FF55);
         ctx.drawCenteredTextWithShadow(textRenderer, "Peer-to-Peer World Hosting • Social • Screenshot Gallery", width / 2, height / 2 + 5, 0xFFAAAAAA);
     }

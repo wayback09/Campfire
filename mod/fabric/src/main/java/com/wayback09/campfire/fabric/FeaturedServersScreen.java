@@ -31,7 +31,7 @@ public final class FeaturedServersScreen extends Screen {
     public FeaturedServersScreen(Screen parent) {
         super(Text.literal("Featured Community Servers"));
         this.parent = parent;
-        this.store = new FeaturedServerStore(MinecraftClient.getInstance().runDirectory.toPath());
+        this.store = new FeaturedServerStore(net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir());
     }
 
     @Override
