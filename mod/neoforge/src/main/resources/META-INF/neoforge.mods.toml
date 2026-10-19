@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "GPL-3.0"
+
+[[mods]]
+modId = "campfire"
+version = "${version}"
+displayName = "Campfire"
+description = """
+Peer-to-peer world hosting and social mod.
+Host your world, invite friends, and manage screenshots -- no server required.
+"""
+authors = "wayback09"
+displayURL = "https://modrinth.com/mod/campfire"
+
+[[dependencies.campfire]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.campfire]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21,1.22)"
+ordering = "NONE"
+side = "CLIENT"

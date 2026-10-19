@@ -84,7 +84,7 @@ public final class FeaturedServersScreen extends Screen {
 
             // Card background
             ctx.fill(cardLeft, y, cardRight, y + CARD_H - 6, 0x66000000);
-            ctx.drawBorder(cardLeft, y, cardW, CARD_H - 6, 0x33FFFFFF);
+            drawBorder(ctx, cardLeft, y, cardW, CARD_H - 6, 0x33FFFFFF);
 
             int textX = cardLeft + 8;
             int btnX  = cardRight - CONNECT_BTN_W - 6;
@@ -112,5 +112,12 @@ public final class FeaturedServersScreen extends Screen {
         if (client != null) {
             client.setScreen(parent);
         }
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y + 1, x + 1, y + height - 1, color);
+        context.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
     }
 }

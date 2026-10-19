@@ -11,4 +11,5 @@ public final class CampfireConfig {
     public int screenshotPreviewSeconds = 5;
     public boolean smoothZoomCamera = true;
     public boolean toggleToZoom = false;
+    public boolean enableTelemetry = true;
 }

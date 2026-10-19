@@ -4,6 +4,7 @@ import com.wayback09.campfire.CampfireConfig;
 import com.wayback09.campfire.PresenceManager;
 import com.wayback09.campfire.PresenceState;
 import com.wayback09.campfire.ScreenshotStore;
+import com.wayback09.campfire.TelemetryManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -15,6 +16,7 @@ public final class CampfireFabric implements ClientModInitializer {
     public static final CampfireConfig CONFIG = new CampfireConfig();
     public static ScreenshotStore screenshots;
     public static PresenceManager presence;
+    public static TelemetryManager telemetry;
     public static boolean pendingHostWorld = false;
 
     @Override
@@ -23,6 +25,14 @@ public final class CampfireFabric implements ClientModInitializer {
 
         screenshots = new ScreenshotStore(gameDir.resolve("screenshots"));
         presence = new PresenceManager(gameDir);
+        telemetry = new TelemetryManager(gameDir, CONFIG);
+
+        // Send anonymous launch telemetry event
+        String modVer = FabricLoader.getInstance().getModContainer("campfire")
+            .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("0.1.0");
+        String mcVer = FabricLoader.getInstance().getModContainer("minecraft")
+            .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("1.21.x");
+        telemetry.sendLaunch(modVer, mcVer, "fabric");
 
         // Set initial presence to MENU
         presence.update(PresenceState.menu(getUsername()));
@@ -31,15 +41,28 @@ public final class CampfireFabric implements ClientModInitializer {
         ScreenshotCapture.register(screenshots, CONFIG);
         CampfireMenuHooks.register();
 
-        // Poll for pending invites every 40 ticks (~2 seconds)
+        // Poll for pending invites asynchronously every 60 ticks (~3 seconds)
+        // Never block the client render loop with synchronous network calls!
         final int[] tickCounter = {0};
+        final boolean[] isPollingInvites = {false};
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (++tickCounter[0] < 40) return;
+            if (++tickCounter[0] < 60) return;
             tickCounter[0] = 0;
-            var invite = presence.pollPendingInvite(getUsername());
-            if (invite != null) {
-                InviteToast.show(client, invite);
-            }
+
+            if (isPollingInvites[0]) return;
+            isPollingInvites[0] = true;
+
+            java.util.concurrent.CompletableFuture.supplyAsync(() -> presence.pollPendingInvite(getUsername()))
+                .thenAccept(invite -> {
+                    isPollingInvites[0] = false;
+                    if (invite != null) {
+                        client.execute(() -> InviteToast.show(client, invite));
+                    }
+                })
+                .exceptionally(ex -> {
+                    isPollingInvites[0] = false;
+                    return null;
+                });
         });
 
         // Update presence on server join
