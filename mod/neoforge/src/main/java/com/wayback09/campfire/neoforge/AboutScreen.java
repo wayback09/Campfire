@@ -17,7 +17,7 @@ import java.util.UUID;
 public final class AboutScreen extends Screen {
     private final Screen parent;
     private static final int CARD_W = 280;
-    private static final int CARD_H = 210;
+    private static final int CARD_H = 190;
 
     public AboutScreen(Screen parent) {
         super(Component.literal("Campfire Profile"));
@@ -33,7 +33,7 @@ public final class AboutScreen extends Screen {
         int btnW = 110;
         int btnH = 20;
         int gap = 12;
-        int btnY = cardY + CARD_H - 32;
+        int btnY = cardY + CARD_H - 30;
 
         addRenderableWidget(Button.builder(Component.literal("Settings  ⚙"), b -> {
             if (minecraft != null) {
@@ -83,28 +83,27 @@ public final class AboutScreen extends Screen {
         drawBorder(graphics, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
         // 4. Header title: 🔥 Campfire
-        GuiCompat.drawCenteredString(graphics, font, "🔥 Campfire", width / 2, cardY + 16, 0xFFFF9900);
+        GuiCompat.drawCenteredString(graphics, font, "🔥 Campfire", width / 2, cardY + 14, 0xFFFF9900);
 
         String mcVer = "1.21.x";
         try {
             mcVer = net.neoforged.fml.loading.FMLLoader.versionInfo().mcVersion();
         } catch (Throwable ignored) {}
 
-        GuiCompat.drawCenteredString(graphics, font, "v0.1.0 • NeoForge (" + mcVer + ")", width / 2, cardY + 30, 0xFF94A3B8);
+        GuiCompat.drawCenteredString(graphics, font, "v0.1.0 • NeoForge (" + mcVer + ")", width / 2, cardY + 27, 0xFF94A3B8);
 
-        // 5. User Profile Card
+        // 5. User Profile Card — 32px centred head, username & Online badge centred below
         int userRowX = cardX + 16;
-        int userRowY = cardY + 50;
+        int userRowY = cardY + 44;
         int userRowW = CARD_W - 32;
-        int userRowH = 36;
+        int userRowH = 80;
 
         graphics.fill(userRowX, userRowY, userRowX + userRowW, userRowY + userRowH, 0xFF141519);
         drawBorder(graphics, userRowX, userRowY, userRowW, userRowH, 0xFF2C2E38);
 
-        // Avatar
-        int faceX = userRowX + 8;
+        int faceSize = 32;
+        int faceX = userRowX + (userRowW - faceSize) / 2;
         int faceY = userRowY + 8;
-        int faceSize = 20;
 
         boolean drawnFace = false;
         try {
@@ -122,17 +121,14 @@ public final class AboutScreen extends Screen {
 
         if (!drawnFace) {
             graphics.fill(faceX, faceY, faceX + faceSize, faceY + faceSize, 0xFF2A2D3A);
-            GuiCompat.drawCenteredString(graphics, font, "👤", faceX + faceSize / 2, faceY + 6, 0xFFFFFFFF);
+            GuiCompat.drawCenteredString(graphics, font, "👤", faceX + faceSize / 2, faceY + 10, 0xFFFFFFFF);
         }
 
+        // Username & Online status centred below head
         String username = minecraft != null && minecraft.getUser() != null ? minecraft.getUser().getName() : "Player";
-        GuiCompat.drawString(graphics, font, username, userRowX + 36, userRowY + 9, 0xFFFFFFFF);
-        GuiCompat.drawString(graphics, font, "● Online", userRowX + 36, userRowY + 21, 0xFF22C55E);
-
-        // 6. Feature highlights
-        int featureY = userRowY + userRowH + 16;
-        GuiCompat.drawCenteredString(graphics, font, "Peer-to-Peer World Hosting", width / 2, featureY, 0xFFCBD5E1);
-        GuiCompat.drawCenteredString(graphics, font, "Friends & Social • Instant Gallery", width / 2, featureY + 14, 0xFF94A3B8);
+        int textCx = userRowX + userRowW / 2;
+        GuiCompat.drawCenteredString(graphics, font, username, textCx, faceY + faceSize + 4, 0xFFFFFFFF);
+        GuiCompat.drawCenteredString(graphics, font, "● Online", textCx, faceY + faceSize + 16, 0xFF22C55E);
 
         // Render buttons & widgets
         super.render(graphics, mouseX, mouseY, delta);

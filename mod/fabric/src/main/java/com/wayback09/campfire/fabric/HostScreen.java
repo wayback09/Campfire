@@ -12,10 +12,14 @@ import net.minecraft.text.Text;
 import net.minecraft.world.GameMode;
 
 /**
- * World hosting screen for Campfire with pre-host rules and live guest moderation.
+ * World hosting modal screen for Campfire on Fabric.
+ * Sleek floating dark card matching the Campfire modal design system.
  */
 public final class HostScreen extends Screen {
     private final Screen parent;
+    private static final int CARD_W = 300;
+    private static final int CARD_H = 220;
+
     private String inviteCode = "Generating...";
     private String statusText = "Configuring world host...";
     private String directAddress = "";
@@ -25,10 +29,16 @@ public final class HostScreen extends Screen {
     private GameMode selectedMode = GameMode.SURVIVAL;
     private boolean cheatsAllowed = false;
     private boolean pvpEnabled = true;
+    private boolean upnpResolved = false;
 
     public HostScreen(Screen parent) {
+        this(parent, false);
+    }
+
+    public HostScreen(Screen parent, boolean isHosting) {
         super(Text.literal("Campfire World Host"));
         this.parent = parent;
+        this.isHosting = isHosting;
     }
 
     @Override
@@ -36,29 +46,44 @@ public final class HostScreen extends Screen {
         MinecraftClient client = MinecraftClient.getInstance();
         IntegratedServer server = client.getServer();
 
+        int cardX = (width - CARD_W) / 2;
+        int cardY = (height - CARD_H) / 2;
+
+        // Close '✕' button in top-right of modal card
+        addDrawableChild(
+            ButtonWidget.builder(Text.literal("✕"), b -> close())
+                .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
+                .build()
+        );
+
         if (server == null) {
-            statusText = "Choose a singleplayer world to host with Campfire:";
+            statusText = "Choose a singleplayer world to host:";
             addDrawableChild(ButtonWidget.builder(Text.literal("Select & Host World..."), b -> {
                 CampfireFabric.pendingHostWorld = true;
                 client.setScreen(new net.minecraft.client.gui.screen.world.SelectWorldScreen(parent));
-            }).dimensions(width / 2 - 100, height / 2 - 10, 200, 20).build());
+            }).dimensions(cardX + (CARD_W - 180) / 2, cardY + 80, 180, 20).build());
 
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), b -> close())
-                    .dimensions(width / 2 - 100, height - 40, 200, 20).build());
+                    .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
             return;
         }
 
-        if (server.isRemote()) {
+        boolean isAlreadyOpen = isHosting || server.isRemote() || server.getServerPort() > 0;
+        if (isAlreadyOpen) {
             isHosting = true;
-            setupActiveHostUI(server);
+            setupActiveHostUI(server, cardX, cardY);
         } else {
             isHosting = false;
-            setupPreHostUI(server);
+            setupPreHostUI(server, cardX, cardY);
         }
     }
 
-    private void setupPreHostUI(IntegratedServer server) {
-        statusText = "Configure rules before opening your world to friends:";
+    private void setupPreHostUI(IntegratedServer server, int cardX, int cardY) {
+        statusText = "Configure rules before opening your world:";
+
+        int btnW = 190;
+        int btnH = 18;
+        int btnX = cardX + (CARD_W - btnW) / 2;
 
         // Game Mode Cycler
         addDrawableChild(ButtonWidget.builder(Text.literal("Game Mode: " + selectedMode.name()), b -> {
@@ -69,20 +94,19 @@ public final class HostScreen extends Screen {
                 case SPECTATOR -> GameMode.SURVIVAL;
             };
             b.setMessage(Text.literal("Game Mode: " + selectedMode.name()));
-        }).dimensions(width / 2 - 100, height / 2 - 40, 200, 20).build());
-
+        }).dimensions(btnX, cardY + 46, btnW, btnH).build());
 
         // Cheats Toggle
         addDrawableChild(ButtonWidget.builder(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")), b -> {
             cheatsAllowed = !cheatsAllowed;
             b.setMessage(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")));
-        }).dimensions(width / 2 - 100, height / 2 - 16, 200, 20).build());
+        }).dimensions(btnX, cardY + 68, btnW, btnH).build());
 
         // PVP Toggle
         addDrawableChild(ButtonWidget.builder(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")), b -> {
             pvpEnabled = !pvpEnabled;
             b.setMessage(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")));
-        }).dimensions(width / 2 - 100, height / 2 + 8, 200, 20).build());
+        }).dimensions(btnX, cardY + 90, btnW, btnH).build());
 
         // Start Host Button
         addDrawableChild(ButtonWidget.builder(Text.literal("🔥 Start Hosting World"), b -> {
@@ -93,37 +117,68 @@ public final class HostScreen extends Screen {
                 opened = server.openToLan(selectedMode, cheatsAllowed, port);
             }
             if (opened) {
-                server.setPvpEnabled(pvpEnabled);
-                isHosting = true;
+                try {
+                    server.setPvpEnabled(pvpEnabled);
+                } catch (Throwable ignored) {}
+                this.isHosting = true;
                 clearAndInit();
             } else {
                 statusText = "Failed to open world to LAN.";
             }
-        }).dimensions(width / 2 - 100, height / 2 + 38, 200, 20).build());
+        }).dimensions(btnX, cardY + 120, btnW, 20).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), b -> close())
-                .dimensions(width / 2 - 100, height - 40, 200, 20).build());
+                .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
     }
 
-    private void setupActiveHostUI(IntegratedServer server) {
+    private void setupActiveHostUI(IntegratedServer server, int cardX, int cardY) {
         int hostPort = server.getServerPort();
-        statusText = "Local Port: " + hostPort + " (Requesting UPnP...)";
+        statusText = "World is live! Connecting to Campfire Servers...";
 
         String worldName = server.getSaveProperties().getLevelName();
-        UpnpHelper.openPort(hostPort).thenAccept(info -> {
-            String bestIp = info.upnpSuccess() ? info.publicIp() : info.localIp();
-            inviteCode = InviteCode.encode(bestIp, hostPort);
-            directAddress = bestIp + ":" + hostPort;
-            statusText = info.upnpSuccess()
-                    ? "Active: UPnP Port-Forwarded (Internet Ready)"
-                    : "Active: LAN Mode (Local / VPN / Hotspot)";
-            // Update presence to HOSTING with invite code
-            if (CampfireFabric.presence != null) {
-                CampfireFabric.presence.update(
-                    com.wayback09.campfire.PresenceState.hosting(
-                        CampfireFabric.getUsername(), worldName, inviteCode));
-            }
-        });
+        // Immediately generate a local invite code so code is never "Generating..."
+        String localIp = UpnpHelper.getLocalIp();
+        if (inviteCode.startsWith("Gen")) {
+            inviteCode = InviteCode.encode(localIp, hostPort);
+            directAddress = localIp + ":" + hostPort;
+        }
+
+        // Connect to Cloud Relay first, fallback to UPnP if unreachable
+        if (!upnpResolved) {
+            upnpResolved = true;
+            statusText = "World is live! Connecting to Campfire Servers...";
+            com.wayback09.campfire.RelayClient.openTunnel(hostPort).thenAccept(session -> {
+                inviteCode = session.code();
+                directAddress = session.host() + ":" + session.port();
+                statusText = "Connected to Campfire Servers ✔";
+                if (CampfireFabric.presence != null) {
+                    CampfireFabric.presence.update(
+                        com.wayback09.campfire.PresenceState.hosting(
+                            CampfireFabric.getUsername(), worldName, inviteCode));
+                }
+            }).exceptionally(ex -> {
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                statusText = "Relay err: " + cause.getMessage();
+                UpnpHelper.openPort(hostPort).thenAccept(info -> {
+                    String bestIp = info.upnpSuccess() ? info.publicIp() : info.localIp();
+                    inviteCode = InviteCode.encode(bestIp, hostPort);
+                    directAddress = bestIp + ":" + hostPort;
+                    statusText = info.upnpSuccess()
+                            ? "Active: UPnP Port-Forwarded"
+                            : "Active: LAN Mode (Local / VPN)";
+                    if (CampfireFabric.presence != null) {
+                        CampfireFabric.presence.update(
+                            com.wayback09.campfire.PresenceState.hosting(
+                                CampfireFabric.getUsername(), worldName, inviteCode));
+                    }
+                });
+                return null;
+            });
+        }
+
+        int btnW = 180;
+        int btnH = 18;
+        int btnX = cardX + (CARD_W - btnW) / 2;
 
         addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Invite Code"), b -> {
             if (!inviteCode.startsWith("Gen")) {
@@ -132,7 +187,7 @@ public final class HostScreen extends Screen {
                 }
                 b.setMessage(Text.literal("✔ Code Copied!"));
             }
-        }).dimensions(width / 2 - 100, height / 2 + 10, 200, 20).build());
+        }).dimensions(btnX, cardY + 98, btnW, btnH).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Direct IP:Port"), b -> {
             if (!directAddress.isBlank()) {
@@ -141,9 +196,8 @@ public final class HostScreen extends Screen {
                 }
                 b.setMessage(Text.literal("✔ Address Copied!"));
             }
-        }).dimensions(width / 2 - 100, height / 2 + 34, 200, 20).build());
+        }).dimensions(btnX, cardY + 120, btnW, btnH).build());
 
-        // Send invite to all friends via Cloudflare / Social backend
         addDrawableChild(ButtonWidget.builder(Text.literal("📨 Invite All Friends"), b -> {
             if (!inviteCode.startsWith("Gen") && CampfireFabric.presence != null) {
                 var gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
@@ -161,31 +215,74 @@ public final class HostScreen extends Screen {
                         }
                     } catch (Exception ignored) {}
                 }
-                b.setMessage(Text.literal(sent > 0 ? "✔ Sent to " + sent + " Friends!" : "No friends found (add in Social)"));
+                b.setMessage(Text.literal(sent > 0 ? "✔ Sent to " + sent + " Friends!" : "No friends in list"));
             }
-        }).dimensions(width / 2 - 100, height / 2 + 58, 200, 20).build());
+        }).dimensions(btnX, cardY + 142, btnW, btnH).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
-                .dimensions(width / 2 - 100, height - 40, 200, 20).build());
+                .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int cardX = (width - CARD_W) / 2;
+        int cardY = (height - CARD_H) / 2;
+        if (mouseX < cardX || mouseX > cardX + CARD_W || mouseY < cardY || mouseY > cardY + CARD_H) {
+            close();
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.render(ctx, mouseX, mouseY, delta);
+        // 1. Render parent underneath
+        if (parent != null) {
+            parent.render(ctx, -1, -1, delta);
+        }
 
-        ctx.drawCenteredTextWithShadow(textRenderer, "Campfire World Hosting", width / 2, 25, CampfireTheme.TEXT);
-        ctx.drawCenteredTextWithShadow(textRenderer, statusText, width / 2, 45, 0xFFAAAAAA);
+        // 2. Translucent backdrop
+        ctx.fill(0, 0, width, height, 0x80000000);
+
+        int cardX = (width - CARD_W) / 2;
+        int cardY = (height - CARD_H) / 2;
+
+        // 3. Floating Modal Card background & border
+        ctx.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
+        drawBorder(ctx, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
+
+        // 4. Header title & status
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire World Host"), width / 2, cardY + 12, 0xFFFF9900);
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(statusText), width / 2, cardY + 26, 0xFF94A3B8);
 
         if (isHosting) {
-            ctx.drawCenteredTextWithShadow(textRenderer, "Invite Code:", width / 2, height / 2 - 35, CampfireTheme.TEXT);
-            ctx.drawCenteredTextWithShadow(textRenderer, inviteCode, width / 2, height / 2 - 18, CampfireTheme.ACCENT);
+            // Invite code pill card
+            int pillX = cardX + 16;
+            int pillY = cardY + 44;
+            int pillW = CARD_W - 32;
+            int pillH = 34;
+
+            ctx.fill(pillX, pillY, pillX + pillW, pillY + pillH, 0xFF141519);
+            drawBorder(ctx, pillX, pillY, pillW, pillH, 0xFF2C2E38);
+
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Invite Code"), width / 2, pillY + 4, 0xFF94A3B8);
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(inviteCode), width / 2, pillY + 16, 0xFFFF9900);
 
             IntegratedServer server = MinecraftClient.getInstance().getServer();
             if (server != null && server.getPlayerManager() != null) {
                 int count = server.getPlayerManager().getCurrentPlayerCount();
-                ctx.drawCenteredTextWithShadow(textRenderer, "Connected Players: " + count, width / 2, height / 2 - 2, 0xFF55FF55);
+                ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Connected: " + count + " player" + (count == 1 ? "" : "s")), width / 2, cardY + 84, 0xFF22C55E);
             }
         }
+
+        super.render(ctx, mouseX, mouseY, delta);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y + 1, x + 1, y + height - 1, color);
+        context.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
     }
 
     @Override

@@ -1,15 +1,20 @@
 package com.wayback09.campfire.fabric;
 
+import com.mojang.authlib.GameProfile;
 import com.wayback09.campfire.CampfireTheme;
 import com.wayback09.campfire.FriendPresence;
+import com.wayback09.campfire.InviteCode;
+import com.wayback09.campfire.RelayClient;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
+import net.minecraft.client.util.SkinTextures;
 import net.minecraft.text.Text;
 
 import java.io.IOException;
@@ -20,15 +25,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Social & Friends screen for Campfire.
- * Saves and loads friends persistently from campfire/friends.json.
- * Shows live presence status, one-click joins, and direct friend invites.
+ * Social & Friends modal dialog for Campfire on Fabric.
+ * Sleek floating dark card matching the Campfire modal design system.
  */
 public final class SocialScreen extends Screen {
     private final Screen parent;
+    private static final int CARD_W = 340;
+    private static final int CARD_H = 250;
+
     private final List<String> friends = new ArrayList<>();
     private final Path storagePath;
     private TextFieldWidget addFriendField;
@@ -37,23 +45,31 @@ public final class SocialScreen extends Screen {
     // Cached presence for the current render pass
     private List<FriendPresence> presenceCache = new ArrayList<>();
 
+    // Tabs: 0 = Friends, 1 = Requests
+    private int activeTab = 0;
+
+    // Pending friend requests (sent by us)
+    private final List<String> sentRequests = new ArrayList<>();
+    // Incoming requests (received from others)
+    private final Path requestsPath;
+    private final List<String> incomingRequests = new ArrayList<>();
+
     public SocialScreen(Screen parent) {
         super(Text.literal("Campfire Social"));
         this.parent = parent;
         this.storagePath = FabricLoader.getInstance().getGameDir().resolve("campfire/friends.json");
+        this.requestsPath = FabricLoader.getInstance().getGameDir().resolve("campfire/requests.json");
         loadFriends();
+        loadRequests();
     }
 
     private void loadFriends() {
         friends.clear();
         if (Files.exists(storagePath)) {
             try {
-                List<String> lines = Files.readAllLines(storagePath);
-                for (String line : lines) {
-                    String trimmed = line.trim();
-                    if (!trimmed.isEmpty() && !friends.contains(trimmed)) {
-                        friends.add(trimmed);
-                    }
+                for (String line : Files.readAllLines(storagePath, StandardCharsets.UTF_8)) {
+                    String t = line.trim();
+                    if (!t.isEmpty() && !friends.contains(t)) friends.add(t);
                 }
             } catch (IOException ignored) {}
         }
@@ -62,114 +78,247 @@ public final class SocialScreen extends Screen {
     private void saveFriends() {
         try {
             Files.createDirectories(storagePath.getParent());
-            Files.write(storagePath, friends);
+            Files.write(storagePath, friends, StandardCharsets.UTF_8);
+        } catch (IOException ignored) {}
+    }
+
+    private void loadRequests() {
+        incomingRequests.clear();
+        sentRequests.clear();
+        if (Files.exists(requestsPath)) {
+            try {
+                for (String line : Files.readAllLines(requestsPath, StandardCharsets.UTF_8)) {
+                    String t = line.trim();
+                    if (t.startsWith("IN:")) incomingRequests.add(t.substring(3));
+                    else if (t.startsWith("OUT:")) sentRequests.add(t.substring(4));
+                }
+            } catch (IOException ignored) {}
+        }
+    }
+
+    private void saveRequests() {
+        try {
+            Files.createDirectories(requestsPath.getParent());
+            List<String> lines = new ArrayList<>();
+            for (String r : incomingRequests) lines.add("IN:" + r);
+            for (String r : sentRequests) lines.add("OUT:" + r);
+            Files.write(requestsPath, lines, StandardCharsets.UTF_8);
         } catch (IOException ignored) {}
     }
 
     @Override
     protected void init() {
-        // Refresh live presence from Cloudflare / SocialServer backend
         if (CampfireFabric.presence != null) {
             CompletableFuture.supplyAsync(() -> CampfireFabric.presence.fetchFriendsPresence(friends))
                 .thenAccept(list -> presenceCache = list);
         }
 
-        // Friend username input
-        addFriendField = new TextFieldWidget(textRenderer, width / 2 - 130, 50, 160, 20, Text.literal("Player Name"));
+        int cardX = (width - CARD_W) / 2;
+        int cardY = (height - CARD_H) / 2;
+
+        // Close '✕' button in top-right of modal card
+        addDrawableChild(
+            ButtonWidget.builder(Text.literal("✕"), b -> close())
+                .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
+                .build()
+        );
+
+        // Tabs
+        int tabW = 120;
+        int tabH = 18;
+        int tabY = cardY + 28;
+        int tabStartX = cardX + (CARD_W - (tabW * 2 + 8)) / 2;
+
+        addDrawableChild(ButtonWidget.builder(Text.literal("👥 Friends"), b -> {
+            activeTab = 0;
+            clearAndInit();
+        }).dimensions(tabStartX, tabY, tabW, tabH).build());
+
+        int reqCount = incomingRequests.size() + sentRequests.size();
+        String reqLabel = "📨 Requests" + (reqCount > 0 ? " (" + reqCount + ")" : "");
+        addDrawableChild(ButtonWidget.builder(Text.literal(reqLabel), b -> {
+            activeTab = 1;
+            clearAndInit();
+        }).dimensions(tabStartX + tabW + 8, tabY, tabW, tabH).build());
+
+        if (activeTab == 0) {
+            initFriendsTab(cardX, cardY);
+        } else {
+            initRequestsTab(cardX, cardY);
+        }
+
+        // Bottom Done button
+        int doneW = 100;
+        int doneH = 18;
+        addDrawableChild(
+            ButtonWidget.builder(Text.literal("Done"), b -> close())
+                .dimensions(cardX + (CARD_W - doneW) / 2, cardY + CARD_H - 26, doneW, doneH)
+                .build()
+        );
+    }
+
+    private void initFriendsTab(int cardX, int cardY) {
+        int inputY = cardY + 52;
+        int fieldW = 190;
+        int fieldH = 18;
+
+        addFriendField = new TextFieldWidget(textRenderer, cardX + 16, inputY, fieldW, fieldH, Text.literal("Player Name"));
         addFriendField.setPlaceholder(Text.literal("Minecraft username..."));
         addSelectableChild(addFriendField);
 
-        // Add button with Mojang validation
+        int addBtnW = 110;
         addDrawableChild(ButtonWidget.builder(Text.literal("Add Friend"), b -> {
             String name = addFriendField.getText().trim();
             if (name.isEmpty()) return;
 
             if (friends.contains(name)) {
-                statusMsg = name + " is already in your friends list.";
+                statusMsg = name + " is already in friends.";
+                return;
+            }
+            if (sentRequests.contains(name)) {
+                statusMsg = "Request already sent to " + name;
                 return;
             }
 
             statusMsg = "Validating player...";
-            // Validate existence against Mojang API asynchronously
             CompletableFuture.runAsync(() -> {
                 String validated = validateMinecraftUsername(name);
                 if (validated != null) {
-                    if (!friends.contains(validated)) {
-                        friends.add(validated);
-                        saveFriends();
+                    if (!sentRequests.contains(validated)) {
+                        sentRequests.add(validated);
+                        saveRequests();
                     }
                     if (client != null) {
                         client.execute(() -> {
                             addFriendField.setText("");
-                            statusMsg = "Added " + validated + " to friends!";
+                            statusMsg = "Request sent to " + validated;
                             clearAndInit();
                         });
                     }
                 } else {
                     if (client != null) {
-                        client.execute(() -> statusMsg = "Player '" + name + "' not found on Minecraft.");
+                        client.execute(() -> statusMsg = "Player '" + name + "' not found.");
                     }
                 }
             });
-        }).dimensions(width / 2 + 35, 50, 95, 20).build());
+        }).dimensions(cardX + 16 + fieldW + 8, inputY, addBtnW, fieldH).build());
 
         boolean isUserHosting = CampfireFabric.presence != null
             && CampfireFabric.presence.getCurrent() != null
             && "HOSTING".equals(CampfireFabric.presence.getCurrent().status());
 
-        // Dynamic friend list items
-        int listY = 105;
+        // Friend list items
+        int listY = cardY + (statusMsg.isEmpty() ? 76 : 84);
+        int maxListY = cardY + CARD_H - 34;
+
         for (int i = 0; i < friends.size(); i++) {
-            if (listY > height - 60) break;
+            if (listY + 20 > maxListY) break;
             final String friendName = friends.get(i);
             final int index = i;
 
-            // Check if this friend is hosting
             FriendPresence fp = presenceCache.stream()
                 .filter(p -> p.username().equalsIgnoreCase(friendName))
                 .findFirst().orElse(null);
 
-            int btnOffset = width / 2 + 130;
+            int rowRight = cardX + CARD_W - 16;
 
-            // Remove button [✕]
+            // Remove [✕]
             addDrawableChild(ButtonWidget.builder(Text.literal("✕"), b -> {
                 friends.remove(index);
                 saveFriends();
                 statusMsg = "Removed " + friendName;
                 clearAndInit();
-            }).dimensions(btnOffset - 22, listY - 2, 22, 18).build());
+            }).dimensions(rowRight - 18, listY + 1, 18, 16).build());
 
-            // If friend is hosting -> [▶ Join]
+            // [▶ Join] or [✉ Invite]
             if (fp != null && fp.isHosting()) {
                 addDrawableChild(ButtonWidget.builder(Text.literal("▶ Join"), b -> {
                     if (client != null) {
-                        ServerAddress addr = ServerAddress.parse(fp.inviteCode());
-                        ServerInfo info = new ServerInfo(friendName + "'s World", addr.getAddress(), ServerInfo.ServerType.OTHER);
-                        ConnectScreen.connect(parent, client, addr, info, false, null);
+                        String code = fp.inviteCode();
+                        if (InviteCode.isRelayCode(code)) {
+                            String relayCode = InviteCode.extractRelayCode(code);
+                            com.wayback09.campfire.RelayClient.startGuestForwarder(relayCode).thenAccept(target -> {
+                                client.execute(() -> {
+                                    ServerAddress addr = new ServerAddress(target.getHostString(), target.getPort());
+                                    ServerInfo info = new ServerInfo(friendName + "'s World", addr.getAddress(), ServerInfo.ServerType.OTHER);
+                                    ConnectScreen.connect(parent, client, addr, info, false, null);
+                                });
+                            });
+                        } else {
+                            ServerAddress addr = ServerAddress.parse(code);
+                            ServerInfo info = new ServerInfo(friendName + "'s World", addr.getAddress(), ServerInfo.ServerType.OTHER);
+                            ConnectScreen.connect(parent, client, addr, info, false, null);
+                        }
                     }
-                }).dimensions(btnOffset - 72, listY - 2, 46, 18).build());
+                }).dimensions(rowRight - 64, listY + 1, 42, 16).build());
             } else if (isUserHosting) {
-                // If local player is hosting -> [✉ Invite]
                 addDrawableChild(ButtonWidget.builder(Text.literal("✉ Invite"), b -> {
                     if (CampfireFabric.presence != null && CampfireFabric.presence.getCurrent() != null) {
                         var curr = CampfireFabric.presence.getCurrent();
                         CampfireFabric.presence.sendNetworkInvite(
-                            CampfireFabric.getUsername(),
-                            friendName,
-                            curr.inviteCode(),
-                            curr.worldName()
-                        );
-                        statusMsg = "Sent invite to " + friendName + "!";
+                            CampfireFabric.getUsername(), friendName, curr.inviteCode(), curr.worldName());
+                        statusMsg = "Sent invite to " + friendName;
                     }
-                }).dimensions(btnOffset - 72, listY - 2, 46, 18).build());
+                }).dimensions(rowRight - 64, listY + 1, 42, 16).build());
             }
 
             listY += 22;
         }
+    }
 
-        // Done button at bottom
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
-                .dimensions(width / 2 - 100, height - 32, 200, 20).build());
+    private void initRequestsTab(int cardX, int cardY) {
+        int listY = cardY + 54;
+        int maxListY = cardY + CARD_H - 34;
+        int rowRight = cardX + CARD_W - 16;
+
+        // Incoming requests
+        for (int i = 0; i < incomingRequests.size(); i++) {
+            if (listY + 20 > maxListY) break;
+            final String requester = incomingRequests.get(i);
+            final int idx = i;
+
+            // Accept
+            addDrawableChild(ButtonWidget.builder(Text.literal("✔ Accept"), b -> {
+                incomingRequests.remove(idx);
+                if (!friends.contains(requester)) {
+                    friends.add(requester);
+                    saveFriends();
+                }
+                saveRequests();
+                statusMsg = "Added " + requester + "!";
+                clearAndInit();
+            }).dimensions(rowRight - 76, listY + 1, 54, 16).build());
+
+            // Decline
+            addDrawableChild(ButtonWidget.builder(Text.literal("✕"), b -> {
+                incomingRequests.remove(idx);
+                saveRequests();
+                statusMsg = "Declined " + requester;
+                clearAndInit();
+            }).dimensions(rowRight - 18, listY + 1, 18, 16).build());
+
+            listY += 22;
+        }
+
+        // Space before sent
+        listY += 14;
+
+        // Sent requests
+        for (int i = 0; i < sentRequests.size(); i++) {
+            if (listY + 20 > maxListY) break;
+            final String pending = sentRequests.get(i);
+            final int idx = i;
+
+            // Cancel
+            addDrawableChild(ButtonWidget.builder(Text.literal("✕ Cancel"), b -> {
+                sentRequests.remove(idx);
+                saveRequests();
+                statusMsg = "Cancelled request to " + pending;
+                clearAndInit();
+            }).dimensions(rowRight - 54, listY + 1, 54, 16).build());
+
+            listY += 22;
+        }
     }
 
     private static String validateMinecraftUsername(String username) {
@@ -179,7 +328,6 @@ public final class SocialScreen extends Screen {
             conn.setReadTimeout(3000);
             if (conn.getResponseCode() == 200) {
                 String json = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                // Extract official casing: "name":"..."
                 int idx = json.indexOf("\"name\":\"");
                 if (idx != -1) {
                     int s = idx + 8;
@@ -190,72 +338,179 @@ public final class SocialScreen extends Screen {
             }
             conn.disconnect();
         } catch (Exception ignored) {
-            // If offline, allow adding by typed name
             return username;
         }
         return null;
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int cardX = (width - CARD_W) / 2;
+        int cardY = (height - CARD_H) / 2;
+        if (mouseX < cardX || mouseX > cardX + CARD_W || mouseY < cardY || mouseY > cardY + CARD_H) {
+            close();
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.render(ctx, mouseX, mouseY, delta);
-
-        ctx.drawCenteredTextWithShadow(textRenderer, "Campfire Friends", width / 2, 22, CampfireTheme.TEXT);
-
-        addFriendField.render(ctx, mouseX, mouseY, delta);
-
-        if (!statusMsg.isEmpty()) {
-            ctx.drawCenteredTextWithShadow(textRenderer, statusMsg, width / 2, 75, CampfireTheme.ACCENT);
+        // 1. Render parent screen underneath
+        if (parent != null) {
+            parent.render(ctx, -1, -1, delta);
         }
 
-        // Friends list header
-        int listY = 90;
-        ctx.drawTextWithShadow(textRenderer, "Friends (" + friends.size() + "):", width / 2 - 130, listY, CampfireTheme.ACCENT);
-        listY += 15;
+        // 2. Dark translucent backdrop
+        ctx.fill(0, 0, width, height, 0x80000000);
+
+        int cardX = (width - CARD_W) / 2;
+        int cardY = (height - CARD_H) / 2;
+
+        // 3. Floating Modal Card background & border
+        ctx.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
+        drawBorder(ctx, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
+
+        // 4. Header title
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire Social"), width / 2, cardY + 12, 0xFFFF9900);
+
+        // Tab underline indicator
+        int tabW = 120;
+        int tabY = cardY + 28;
+        int tabStartX = cardX + (CARD_W - (tabW * 2 + 8)) / 2;
+        int underlineX = tabStartX + activeTab * (tabW + 8);
+        ctx.fill(underlineX, tabY + 18, underlineX + tabW, tabY + 19, CampfireTheme.ACCENT);
+
+        if (!statusMsg.isEmpty()) {
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(statusMsg), width / 2, cardY + 74, CampfireTheme.ACCENT);
+        }
+
+        if (activeTab == 0) {
+            renderFriendsTab(ctx, cardX, cardY);
+        } else {
+            renderRequestsTab(ctx, cardX, cardY);
+        }
+
+        super.render(ctx, mouseX, mouseY, delta);
+    }
+
+    private void renderFriendsTab(DrawContext ctx, int cardX, int cardY) {
+        if (addFriendField != null) addFriendField.render(ctx, 0, 0, 0);
+
+        int listY = cardY + (statusMsg.isEmpty() ? 76 : 84);
+        int maxListY = cardY + CARD_H - 34;
 
         if (friends.isEmpty()) {
-            ctx.drawCenteredTextWithShadow(textRenderer, "No friends added yet.", width / 2, height / 2, 0xFFAAAAAA);
-            ctx.drawCenteredTextWithShadow(textRenderer, "Enter a player's Minecraft username above to connect!", width / 2, height / 2 + 14, 0xFF888888);
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("No friends yet. Add one above!"), width / 2, cardY + 130, 0xFF94A3B8);
         } else {
             for (String f : friends) {
-                if (listY > height - 60) break;
+                if (listY + 20 > maxListY) break;
 
-                // Look up presence
                 FriendPresence fp = presenceCache.stream()
                     .filter(p -> p.username().equalsIgnoreCase(f))
                     .findFirst().orElse(null);
 
-                String presenceLabel = "💤 In Menu";
-                int presenceColor = 0xFF888888;
+                String presenceLabel = "💤 Offline";
+                int presenceColor = 0xFF64748B;
 
                 if (fp != null) {
                     if (fp.isHosting()) {
-                        presenceLabel = "🔥 Hosting: " + (fp.worldName().isBlank() ? "World" : fp.worldName());
+                        presenceLabel = "🔥 Hosting";
                         presenceColor = 0xFFFF7A29;
                     } else if ("SINGLEPLAYER".equalsIgnoreCase(fp.status())) {
-                        presenceLabel = "🌿 Playing Singleplayer";
-                        presenceColor = 0xFF55FF55;
-                    } else if ("OFFLINE".equalsIgnoreCase(fp.status())) {
-                        presenceLabel = "💤 Offline";
-                        presenceColor = 0xFF666666;
+                        presenceLabel = "🌿 Solo";
+                        presenceColor = 0xFF22C55E;
                     } else if ("MULTIPLAYER".equalsIgnoreCase(fp.status())) {
-                        presenceLabel = "🖧 In Multiplayer";
-                        presenceColor = 0xFF55FFFF;
+                        presenceLabel = "🖥 Playing";
+                        presenceColor = 0xFF38BDF8;
                     }
                 }
 
-                // Card background
-                ctx.fill(width / 2 - 130, listY - 2, width / 2 + 130, listY + 18, 0x55000000);
+                int rowW = CARD_W - 32;
+                ctx.fill(cardX + 16, listY, cardX + 16 + rowW, listY + 18, 0xFF141519);
+                drawBorder(ctx, cardX + 16, listY, rowW, 18, 0xFF2C2E38);
 
-                // Name
-                ctx.drawTextWithShadow(textRenderer, "● " + f, width / 2 - 122, listY + 3, CampfireTheme.TEXT);
+                renderUserHead(ctx, f, cardX + 18, listY + 1, 16);
 
-                // Presence label (right of name)
-                ctx.drawTextWithShadow(textRenderer, presenceLabel, width / 2 - 50, listY + 3, presenceColor);
+                ctx.drawTextWithShadow(textRenderer, Text.literal(f), cardX + 38, listY + 5, 0xFFFFFFFF);
+                ctx.drawTextWithShadow(textRenderer, Text.literal(presenceLabel), cardX + 130, listY + 5, presenceColor);
 
                 listY += 22;
             }
         }
+    }
+
+    private void renderRequestsTab(DrawContext ctx, int cardX, int cardY) {
+        int listY = cardY + 54;
+        int maxListY = cardY + CARD_H - 34;
+        int rowW = CARD_W - 32;
+
+        if (incomingRequests.isEmpty() && sentRequests.isEmpty()) {
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("No pending requests."), width / 2, cardY + 120, 0xFF94A3B8);
+            return;
+        }
+
+        // Incoming
+        if (!incomingRequests.isEmpty()) {
+            for (String req : incomingRequests) {
+                if (listY + 20 > maxListY) break;
+                ctx.fill(cardX + 16, listY, cardX + 16 + rowW, listY + 18, 0xFF141519);
+                drawBorder(ctx, cardX + 16, listY, rowW, 18, 0xFF2C2E38);
+
+                renderUserHead(ctx, req, cardX + 18, listY + 1, 16);
+                ctx.drawTextWithShadow(textRenderer, Text.literal(req), cardX + 38, listY + 5, 0xFFFFFFFF);
+                listY += 22;
+            }
+        }
+
+        // Sent
+        if (!sentRequests.isEmpty()) {
+            listY += 4;
+            ctx.drawTextWithShadow(textRenderer, Text.literal("Sent (" + sentRequests.size() + "):"), cardX + 18, listY - 2, 0xFF94A3B8);
+            listY += 10;
+
+            for (String req : sentRequests) {
+                if (listY + 20 > maxListY) break;
+                ctx.fill(cardX + 16, listY, cardX + 16 + rowW, listY + 18, 0xFF141519);
+                drawBorder(ctx, cardX + 16, listY, rowW, 18, 0xFF2C2E38);
+
+                renderUserHead(ctx, req, cardX + 18, listY + 1, 16);
+                ctx.drawTextWithShadow(textRenderer, Text.literal(req), cardX + 38, listY + 5, 0xFFCBD5E1);
+                listY += 22;
+            }
+        }
+    }
+
+    private void renderUserHead(DrawContext ctx, String username, int x, int y, int size) {
+        boolean drawn = false;
+        try {
+            if (client != null && client.getSkinProvider() != null) {
+                GameProfile profile = null;
+                if (client.getGameProfile() != null && username.equalsIgnoreCase(client.getGameProfile().getName())) {
+                    profile = client.getGameProfile();
+                } else {
+                    UUID uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8));
+                    profile = new GameProfile(uuid, username);
+                }
+                SkinTextures skin = SkinHelper.getSkinTextures(client.getSkinProvider(), profile, profile.getId());
+                if (skin != null) {
+                    PlayerSkinDrawer.draw(ctx, skin, x, y, size);
+                    drawn = true;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        if (!drawn) {
+            ctx.fill(x, y, x + size, y + size, 0xFF2A2D3A);
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("👤"), x + size / 2, y + 4, 0xFFFFFFFF);
+        }
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y + 1, x + 1, y + height - 1, color);
+        context.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
     }
 
     @Override

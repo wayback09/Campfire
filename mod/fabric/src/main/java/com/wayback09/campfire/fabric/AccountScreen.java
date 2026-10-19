@@ -108,11 +108,15 @@ public final class AccountScreen extends Screen {
 
         boolean drawnFace = false;
         try {
-            if (client != null && client.getSession() != null) {
-                UUID uuid = client.getSession().getUuidOrNull();
-                String name = client.getSession().getUsername();
-                GameProfile profile = new GameProfile(uuid != null ? uuid : UUID.randomUUID(), name);
-                SkinTextures skin = client.getSkinProvider().getSkinTextures(profile);
+            if (client != null) {
+                GameProfile profile = client.getGameProfile();
+                if (profile == null && client.getSession() != null) {
+                    UUID uuid = client.getSession().getUuidOrNull();
+                    String name = client.getSession().getUsername();
+                    profile = new GameProfile(uuid != null ? uuid : UUID.randomUUID(), name);
+                }
+                UUID uuid = profile != null ? profile.getId() : null;
+                SkinTextures skin = SkinHelper.getSkinTextures(client.getSkinProvider(), profile, uuid);
                 if (skin != null) {
                     PlayerSkinDrawer.draw(context, skin, faceX, faceY, faceSize);
                     drawnFace = true;

@@ -26,10 +26,16 @@ public final class HostScreen extends Screen {
     private GameType selectedMode = GameType.SURVIVAL;
     private boolean cheatsAllowed = false;
     private boolean pvpEnabled = true;
+    private boolean upnpResolved = false;
 
     public HostScreen(Screen parent) {
+        this(parent, false);
+    }
+
+    public HostScreen(Screen parent, boolean isHosting) {
         super(Component.literal("Campfire World Host"));
         this.parent = parent;
+        this.isHosting = isHosting;
     }
 
     @Override
@@ -49,7 +55,8 @@ public final class HostScreen extends Screen {
             return;
         }
 
-        if (server.isPublished()) {
+        boolean isAlreadyOpen = isHosting || server.isPublished() || server.getPort() > 0;
+        if (isAlreadyOpen) {
             isHosting = true;
             setupActiveHostUI(server);
         } else {
@@ -92,8 +99,8 @@ public final class HostScreen extends Screen {
                 try {
                     server.setPvpAllowed(pvpEnabled);
                 } catch (Throwable ignored) {}
-                isHosting = true;
-                rebuildWidgets();
+                this.isHosting = true;
+                this.rebuildWidgets();
             } else {
                 statusText = "Failed to open world to LAN.";
             }
@@ -105,22 +112,46 @@ public final class HostScreen extends Screen {
 
     private void setupActiveHostUI(IntegratedServer server) {
         int hostPort = server.getPort();
-        statusText = "Local Port: " + hostPort + " (Requesting UPnP...)";
+        statusText = "World is live! Connecting to Campfire Servers...";
 
         String worldName = server.getWorldData().getLevelName();
-        UpnpHelper.openPort(hostPort).thenAccept(info -> {
-            String bestIp = info.upnpSuccess() ? info.publicIp() : info.localIp();
-            inviteCode = InviteCode.encode(bestIp, hostPort);
-            directAddress = bestIp + ":" + hostPort;
-            statusText = info.upnpSuccess()
-                    ? "Active: UPnP Port-Forwarded (Internet Ready)"
-                    : "Active: LAN Mode (Local / VPN / Hotspot)";
-            if (CampfireNeoForge.presence != null) {
-                CampfireNeoForge.presence.update(
-                    com.wayback09.campfire.PresenceState.hosting(
-                        CampfireNeoForge.getUsername(), worldName, inviteCode));
-            }
-        });
+        // Immediately generate a local invite code so code is never "Generating..."
+        String localIp = UpnpHelper.getLocalIp();
+        if (inviteCode.startsWith("Gen")) {
+            inviteCode = InviteCode.encode(localIp, hostPort);
+            directAddress = localIp + ":" + hostPort;
+        }
+
+        // Connect to Cloud Relay first, fallback to UPnP if unreachable
+        if (!upnpResolved) {
+            upnpResolved = true;
+            statusText = "World is live! Connecting to Campfire Servers...";
+            com.wayback09.campfire.RelayClient.openTunnel(hostPort).thenAccept(session -> {
+                inviteCode = session.code();
+                directAddress = session.host() + ":" + session.port();
+                statusText = "Connected to Campfire Servers ✔";
+                if (CampfireNeoForge.presence != null) {
+                    CampfireNeoForge.presence.update(
+                        com.wayback09.campfire.PresenceState.hosting(
+                            CampfireNeoForge.getUsername(), worldName, inviteCode));
+                }
+            }).exceptionally(ex -> {
+                UpnpHelper.openPort(hostPort).thenAccept(info -> {
+                    String bestIp = info.upnpSuccess() ? info.publicIp() : info.localIp();
+                    inviteCode = InviteCode.encode(bestIp, hostPort);
+                    directAddress = bestIp + ":" + hostPort;
+                    statusText = info.upnpSuccess()
+                            ? "Active: UPnP Port-Forwarded (Internet Ready)"
+                            : "Active: LAN Mode (Local / VPN / Hotspot)";
+                    if (CampfireNeoForge.presence != null) {
+                        CampfireNeoForge.presence.update(
+                            com.wayback09.campfire.PresenceState.hosting(
+                                CampfireNeoForge.getUsername(), worldName, inviteCode));
+                    }
+                });
+                return null;
+            });
+        }
 
         addRenderableWidget(Button.builder(Component.literal("📋 Copy Invite Code"), b -> {
             if (!inviteCode.startsWith("Gen")) {

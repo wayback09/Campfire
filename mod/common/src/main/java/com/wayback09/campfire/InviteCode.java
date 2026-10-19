@@ -99,4 +99,27 @@ public final class InviteCode {
 
         return null;
     }
+
+    /**
+     * Checks if the given code is a 4-letter Go Relay room code.
+     */
+    public static boolean isRelayCode(String input) {
+        if (input == null || input.isBlank()) return false;
+        String clean = input.trim().toUpperCase();
+        if (clean.startsWith("CAMP-")) clean = clean.substring(5);
+        if (clean.startsWith("RELAY-")) clean = clean.substring(6);
+        clean = clean.replace("-", "").trim();
+        return clean.length() == 4;
+    }
+
+    /**
+     * Extracts the 4-letter relay room code from an invite string.
+     */
+    public static String extractRelayCode(String input) {
+        if (input == null) return "";
+        String clean = input.trim().toUpperCase();
+        if (clean.startsWith("CAMP-")) clean = clean.substring(5);
+        if (clean.startsWith("RELAY-")) clean = clean.substring(6);
+        return clean.replace("-", "").trim();
+    }
 }

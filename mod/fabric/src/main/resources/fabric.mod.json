@@ -8,6 +8,12 @@
   "license": "GPL-3.0",
   "icon": "assets/campfire/icon.png",
 
+  "contact": {
+    "homepage": "https://github.com/wayback09/Campfire",
+    "sources": "https://github.com/wayback09/Campfire",
+    "issues": "https://github.com/wayback09/Campfire/issues"
+  },
+
   "environment": "client",
   "entrypoints": {
     "client": ["com.wayback09.campfire.fabric.CampfireFabric"],

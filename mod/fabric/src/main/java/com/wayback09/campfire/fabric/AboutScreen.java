@@ -1,8 +1,6 @@
 package com.wayback09.campfire.fabric;
 
 import com.mojang.authlib.GameProfile;
-import com.wayback09.campfire.CampfireTheme;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.screen.Screen;
@@ -18,7 +16,7 @@ import java.util.UUID;
 public final class AboutScreen extends Screen {
     private final Screen parent;
     private static final int CARD_W = 280;
-    private static final int CARD_H = 210;
+    private static final int CARD_H = 190;
 
     public AboutScreen(Screen parent) {
         super(Text.literal("Campfire Profile"));
@@ -30,11 +28,10 @@ public final class AboutScreen extends Screen {
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // Bottom action buttons inside card
         int btnW = 110;
         int btnH = 20;
         int gap = 12;
-        int btnY = cardY + CARD_H - 32;
+        int btnY = cardY + CARD_H - 30;
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Settings  ⚙"), b -> {
             if (client != null) {
@@ -45,7 +42,6 @@ public final class AboutScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
             .dimensions(cardX + (CARD_W - (btnW * 2 + gap)) / 2 + btnW + gap, btnY, btnW, btnH).build());
 
-        // Close '✕' button in top-right of dialog card
         addDrawableChild(
             ButtonWidget.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
@@ -83,8 +79,8 @@ public final class AboutScreen extends Screen {
         context.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
         drawBorder(context, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
-        // 4. Header title: 🔥 Campfire
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire"), width / 2, cardY + 16, 0xFFFF9900);
+        // 4. Header
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire"), width / 2, cardY + 14, 0xFFFF9900);
 
         String modVer = net.fabricmc.loader.api.FabricLoader.getInstance()
             .getModContainer("campfire")
@@ -95,29 +91,32 @@ public final class AboutScreen extends Screen {
             .map(c -> c.getMetadata().getVersion().getFriendlyString())
             .orElse("1.21.x");
 
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("v" + modVer + " • Fabric (" + mcVer + ")"), width / 2, cardY + 30, 0xFF94A3B8);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("v" + modVer + " • Fabric (" + mcVer + ")"), width / 2, cardY + 27, 0xFF94A3B8);
 
-        // 5. User Profile Card
+        // 5. User Profile Card — 32px centred head, username & Online badge centred below
         int userRowX = cardX + 16;
-        int userRowY = cardY + 50;
+        int userRowY = cardY + 44;
         int userRowW = CARD_W - 32;
-        int userRowH = 36;
+        int userRowH = 80;
 
         context.fill(userRowX, userRowY, userRowX + userRowW, userRowY + userRowH, 0xFF141519);
         drawBorder(context, userRowX, userRowY, userRowW, userRowH, 0xFF2C2E38);
 
-        // Avatar
-        int faceX = userRowX + 8;
+        int faceSize = 32;
+        int faceX = userRowX + (userRowW - faceSize) / 2;
         int faceY = userRowY + 8;
-        int faceSize = 20;
 
         boolean drawnFace = false;
         try {
-            if (client != null && client.getSession() != null) {
-                UUID uuid = client.getSession().getUuidOrNull();
-                String name = client.getSession().getUsername();
-                GameProfile profile = new GameProfile(uuid != null ? uuid : UUID.randomUUID(), name);
-                SkinTextures skin = client.getSkinProvider().getSkinTextures(profile);
+            if (client != null) {
+                GameProfile profile = client.getGameProfile();
+                if (profile == null && client.getSession() != null) {
+                    UUID uuid = client.getSession().getUuidOrNull();
+                    String name = client.getSession().getUsername();
+                    profile = new GameProfile(uuid != null ? uuid : UUID.randomUUID(), name);
+                }
+                UUID uuid = profile != null ? profile.getId() : null;
+                SkinTextures skin = SkinHelper.getSkinTextures(client.getSkinProvider(), profile, uuid);
                 if (skin != null) {
                     PlayerSkinDrawer.draw(context, skin, faceX, faceY, faceSize);
                     drawnFace = true;
@@ -127,17 +126,14 @@ public final class AboutScreen extends Screen {
 
         if (!drawnFace) {
             context.fill(faceX, faceY, faceX + faceSize, faceY + faceSize, 0xFF2A2D3A);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("👤"), faceX + faceSize / 2, faceY + 6, 0xFFFFFFFF);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal("👤"), faceX + faceSize / 2, faceY + 10, 0xFFFFFFFF);
         }
 
+        // Username & Online status centred below head
         String username = client != null && client.getSession() != null ? client.getSession().getUsername() : "Player";
-        context.drawTextWithShadow(textRenderer, Text.literal(username), userRowX + 36, userRowY + 9, 0xFFFFFFFF);
-        context.drawTextWithShadow(textRenderer, Text.literal("● Online"), userRowX + 36, userRowY + 21, 0xFF22C55E);
-
-        // 6. Feature highlights
-        int featureY = userRowY + userRowH + 16;
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Peer-to-Peer World Hosting"), width / 2, featureY, 0xFFCBD5E1);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Friends & Social • Instant Gallery"), width / 2, featureY + 14, 0xFF94A3B8);
+        int textCx = userRowX + userRowW / 2;
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(username), textCx, faceY + faceSize + 4, 0xFFFFFFFF);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("● Online"), textCx, faceY + faceSize + 16, 0xFF22C55E);
 
         // Render buttons & widgets
         super.render(context, mouseX, mouseY, delta);

@@ -8,6 +8,7 @@ bin/
 # Loom runtime directory
 run/
 .fabric/
+.neoforge/
 
 # IDE files
 .idea/
@@ -29,3 +30,14 @@ Thumbs.db
 /logs/
 /crash-reports/
 
+# Go build & cache artifacts
+**/.cache/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/relay-go/server-linux
+backend/relay-go/relay-test*
+backend/relay-go/server*
+server-linux

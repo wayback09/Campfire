@@ -11,7 +11,8 @@ Peer-to-peer world hosting and social mod.
 Host your world, invite friends, and manage screenshots -- no server required.
 """
 authors = "wayback09"
-displayURL = "https://modrinth.com/mod/campfire"
+displayURL = "https://github.com/wayback09/Campfire"
+issueTrackerURL = "https://github.com/wayback09/Campfire/issues"
 
 [[dependencies.campfire]]
 modId = "neoforge"

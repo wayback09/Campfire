@@ -44,13 +44,37 @@ public final class JoinScreen extends Screen {
 
     private void join() {
         String input = inputField.getText();
+        if (input == null || input.isBlank()) {
+            errorText = "Please enter an invite code.";
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        if (InviteCode.isRelayCode(input)) {
+            String code = InviteCode.extractRelayCode(input);
+            errorText = "Connecting via Campfire Relay...";
+            com.wayback09.campfire.RelayClient.startGuestForwarder(code).thenAccept(target -> {
+                client.execute(() -> {
+                    ServerAddress address = new ServerAddress(target.getHostString(), target.getPort());
+                    ServerInfo info = new ServerInfo("Campfire: " + code, address.getAddress(), ServerInfo.ServerType.OTHER);
+                    ConnectScreen.connect(parent, client, address, info, false, null);
+                });
+            }).exceptionally(ex -> {
+                client.execute(() -> {
+                    errorText = "Relay connection failed: " + ex.getMessage();
+                });
+                return null;
+            });
+            return;
+        }
+
         InetSocketAddress target = InviteCode.decode(input);
         if (target == null) {
             errorText = "Invalid invite code or address format.";
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
         ServerAddress address = new ServerAddress(target.getHostString(), target.getPort());
         ServerInfo info = new ServerInfo("Campfire Hosted World", address.getAddress(), ServerInfo.ServerType.OTHER);
 

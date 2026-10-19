@@ -18,9 +18,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Interactive in-game Photos App for Minecraft screenshots.
- * Renders actual screenshot textures, supports Previous/Next browsing and arrow keys,
- * with clean bottom button controls.
+ * Interactive in-game Pictures & Screenshots modal for Campfire on Fabric.
+ * Sleek floating dark card matching the Campfire modal design system.
  */
 public final class PicturesScreen extends Screen {
     private final Screen parent;
@@ -39,15 +38,43 @@ public final class PicturesScreen extends Screen {
         this.store = store;
     }
 
+    private int getCardW() {
+        return Math.min(width - 32, 460);
+    }
+
+    private int getCardH() {
+        return Math.min(height - 32, 310);
+    }
+
     @Override
     protected void init() {
         loadCurrentImage();
 
-        int bottomY = height - 32;
+        int cardW = getCardW();
+        int cardH = getCardH();
+        int cardX = (width - cardW) / 2;
+        int cardY = (height - cardH) / 2;
 
-        // Navigation buttons: Previous (<), Copy Image, and Next (>)
-        addDrawableChild(ButtonWidget.builder(Text.literal("< Previous"), b -> previousImage())
-                .dimensions(width / 2 - 160, bottomY - 26, 75, 20).build());
+        // Close '✕' button in top-right of modal card
+        addDrawableChild(
+            ButtonWidget.builder(Text.literal("✕"), b -> close())
+                .dimensions(cardX + cardW - 22, cardY + 8, 16, 16)
+                .build()
+        );
+
+        // Bottom control buttons
+        int btnY = cardY + cardH - 28;
+        int prevW = 56;
+        int copyW = 92;
+        int nextW = 56;
+        int folderW = 72;
+        int doneW = 56;
+        int gap = 6;
+        int totalW = prevW + copyW + nextW + folderW + doneW + gap * 4;
+        int startX = cardX + (cardW - totalW) / 2;
+
+        addDrawableChild(ButtonWidget.builder(Text.literal("< Prev"), b -> previousImage())
+                .dimensions(startX, btnY, prevW, 18).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Image"), b -> {
             List<ScreenshotStore.Entry> list = store.list();
@@ -55,20 +82,17 @@ public final class PicturesScreen extends Screen {
                 ClipboardHelper.copyImage(list.get(currentIndex).file());
                 b.setMessage(Text.literal("✔ Copied!"));
             }
-        }).dimensions(width / 2 - 50, bottomY - 26, 100, 20).build());
-
+        }).dimensions(startX + prevW + gap, btnY, copyW, 18).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Next >"), b -> nextImage())
-                .dimensions(width / 2 + 85, bottomY - 26, 75, 20).build());
+                .dimensions(startX + prevW + copyW + gap * 2, btnY, nextW, 18).build());
 
-
-        // Both action buttons at the bottom side-by-side
-        addDrawableChild(ButtonWidget.builder(Text.literal("Open folder"), b -> {
+        addDrawableChild(ButtonWidget.builder(Text.literal("📁 Folder"), b -> {
             net.minecraft.util.Util.getOperatingSystem().open(store.dir().toFile());
-        }).dimensions(width / 2 - 105, bottomY, 100, 20).build());
+        }).dimensions(startX + prevW + copyW + nextW + gap * 3, btnY, folderW, 18).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
-                .dimensions(width / 2 + 5, bottomY, 100, 20).build());
+                .dimensions(startX + prevW + copyW + nextW + folderW + gap * 4, btnY, doneW, 18).build());
     }
 
     private void previousImage() {
@@ -115,7 +139,7 @@ public final class PicturesScreen extends Screen {
             MinecraftClient.getInstance().getTextureManager().registerTexture(currentTextureId, currentTexture);
         } catch (Exception e) {
             cleanupTexture();
-            currentFileName = "Error loading image: " + file.getFileName();
+            currentFileName = "Error loading: " + file.getFileName();
         }
     }
 
@@ -144,40 +168,85 @@ public final class PicturesScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.render(ctx, mouseX, mouseY, delta);
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int cardW = getCardW();
+        int cardH = getCardH();
+        int cardX = (width - cardW) / 2;
+        int cardY = (height - cardH) / 2;
+        if (mouseX < cardX || mouseX > cardX + cardW || mouseY < cardY || mouseY > cardY + cardH) {
+            close();
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
 
+    @Override
+    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        // 1. Render parent underneath
+        if (parent != null) {
+            parent.render(ctx, -1, -1, delta);
+        }
+
+        // 2. Translucent backdrop
+        ctx.fill(0, 0, width, height, 0x80000000);
+
+        int cardW = getCardW();
+        int cardH = getCardH();
+        int cardX = (width - cardW) / 2;
+        int cardY = (height - cardH) / 2;
+
+        // 3. Floating Modal Card background & border
+        ctx.fill(cardX, cardY, cardX + cardW, cardY + cardH, 0xFF18181D);
+        drawBorder(ctx, cardX, cardY, cardW, cardH, 0xFF2F313D);
+
+        // 4. Header title & counter
         List<ScreenshotStore.Entry> list = store.list();
         String counter = list.isEmpty() ? "" : " (" + (currentIndex + 1) + " of " + list.size() + ")";
-        ctx.drawCenteredTextWithShadow(textRenderer, "Campfire Pictures" + counter, width / 2, 12, CampfireTheme.TEXT);
-        ctx.drawCenteredTextWithShadow(textRenderer, currentFileName, width / 2, 26, CampfireTheme.ACCENT);
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("🖼 Campfire Pictures" + counter), width / 2, cardY + 10, 0xFFFF9900);
 
-        // Center preview box area
-        int maxPreviewW = width - 80;
-        int maxPreviewH = height - 100;
+        // Subtitle filename
+        String truncatedName = currentFileName;
+        if (textRenderer.getWidth(truncatedName) > cardW - 60) {
+            truncatedName = textRenderer.trimToWidth(truncatedName, cardW - 70) + "...";
+        }
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(truncatedName), width / 2, cardY + 22, 0xFF94A3B8);
+
+        // 5. Image preview box area
+        int previewAreaX = cardX + 16;
+        int previewAreaY = cardY + 36;
+        int previewAreaW = cardW - 32;
+        int previewAreaH = cardH - 72;
+
+        ctx.fill(previewAreaX, previewAreaY, previewAreaX + previewAreaW, previewAreaY + previewAreaH, 0xFF141519);
+        drawBorder(ctx, previewAreaX, previewAreaY, previewAreaW, previewAreaH, 0xFF2C2E38);
 
         if (currentTextureId != null && imageWidth > 0 && imageHeight > 0) {
             float aspect = (float) imageWidth / imageHeight;
-            int drawW = maxPreviewW;
+            int drawW = previewAreaW - 4;
             int drawH = (int) (drawW / aspect);
 
-            if (drawH > maxPreviewH) {
-                drawH = maxPreviewH;
+            if (drawH > previewAreaH - 4) {
+                drawH = previewAreaH - 4;
                 drawW = (int) (drawH * aspect);
             }
 
-            int drawX = width / 2 - drawW / 2;
-            int drawY = 40 + (maxPreviewH - drawH) / 2;
+            int drawX = previewAreaX + (previewAreaW - drawW) / 2;
+            int drawY = previewAreaY + (previewAreaH - drawH) / 2;
 
-            // Draw dark backdrop card
-            ctx.fill(drawX - 2, drawY - 2, drawX + drawW + 2, drawY + drawH + 2, 0xFF000000);
-
-            // Draw screenshot texture
             ctx.drawTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, currentTextureId, drawX, drawY, 0.0f, 0.0f, drawW, drawH, drawW, drawH);
         } else if (list.isEmpty()) {
-            ctx.drawCenteredTextWithShadow(textRenderer, "No screenshots in directory yet.", width / 2, height / 2 - 10, 0xFFAAAAAA);
-            ctx.drawCenteredTextWithShadow(textRenderer, "Take screenshots in-game using F2!", width / 2, height / 2 + 5, 0xFF888888);
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("No screenshots in folder yet."), width / 2, previewAreaY + previewAreaH / 2 - 8, 0xFF94A3B8);
+            ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Press F2 in-game to capture screenshots!"), width / 2, previewAreaY + previewAreaH / 2 + 6, 0xFF64748B);
         }
+
+        super.render(ctx, mouseX, mouseY, delta);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y + 1, x + 1, y + height - 1, color);
+        context.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
     }
 
     @Override

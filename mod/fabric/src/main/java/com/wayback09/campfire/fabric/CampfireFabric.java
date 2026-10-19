@@ -86,9 +86,11 @@ public final class CampfireFabric implements ClientModInitializer {
             });
         });
 
-        // Reset presence to MENU on disconnect
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
-            presence.update(PresenceState.menu(getUsername())));
+        // Reset presence to MENU on disconnect and close active relay tunnel
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            com.wayback09.campfire.RelayClient.closeActiveSession();
+            presence.update(PresenceState.menu(getUsername()));
+        });
     }
 
     public static String getUsername() {
