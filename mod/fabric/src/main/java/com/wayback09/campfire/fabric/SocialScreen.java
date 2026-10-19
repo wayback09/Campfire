@@ -118,7 +118,7 @@ public final class SocialScreen extends Screen {
 
         // Close '✕' button in top-right of modal card
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("✕"), b -> close())
+            CampfireButton.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
                 .build()
         );
@@ -129,14 +129,14 @@ public final class SocialScreen extends Screen {
         int tabY = cardY + 28;
         int tabStartX = cardX + (CARD_W - (tabW * 2 + 8)) / 2;
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("👥 Friends"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("👥 Friends"), b -> {
             activeTab = 0;
             clearAndInit();
         }).dimensions(tabStartX, tabY, tabW, tabH).build());
 
         int reqCount = incomingRequests.size() + sentRequests.size();
         String reqLabel = "📨 Requests" + (reqCount > 0 ? " (" + reqCount + ")" : "");
-        addDrawableChild(ButtonWidget.builder(Text.literal(reqLabel), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal(reqLabel), b -> {
             activeTab = 1;
             clearAndInit();
         }).dimensions(tabStartX + tabW + 8, tabY, tabW, tabH).build());
@@ -151,7 +151,7 @@ public final class SocialScreen extends Screen {
         int doneW = 100;
         int doneH = 18;
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("Done"), b -> close())
+            CampfireButton.builder(Text.literal("Done"), b -> close())
                 .dimensions(cardX + (CARD_W - doneW) / 2, cardY + CARD_H - 26, doneW, doneH)
                 .build()
         );
@@ -167,7 +167,7 @@ public final class SocialScreen extends Screen {
         addSelectableChild(addFriendField);
 
         int addBtnW = 110;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Add Friend"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("Add Friend"), b -> {
             String name = addFriendField.getText().trim();
             if (name.isEmpty()) return;
 
@@ -222,7 +222,7 @@ public final class SocialScreen extends Screen {
 
             int rowRight = cardX + CARD_W - 16;
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("✕"), b -> {
+            addDrawableChild(CampfireButton.builder(Text.literal("✕"), b -> {
                 friends.remove(index);
                 saveFriends();
                 statusMsg = "Removed " + friendName;
@@ -230,7 +230,7 @@ public final class SocialScreen extends Screen {
             }).dimensions(rowRight - 18, listY + 1, 18, 16).build());
 
             if (fp != null && fp.isHosting()) {
-                addDrawableChild(ButtonWidget.builder(Text.literal("▶ Join"), b -> {
+                addDrawableChild(CampfireButton.builder(Text.literal("▶ Join"), b -> {
                     if (client != null) {
                         String code = fp.inviteCode();
                         if (InviteCode.isRelayCode(code)) {
@@ -250,7 +250,7 @@ public final class SocialScreen extends Screen {
                     }
                 }).dimensions(rowRight - 64, listY + 1, 42, 16).build());
             } else if (isUserHosting) {
-                addDrawableChild(ButtonWidget.builder(Text.literal("✉ Invite"), b -> {
+                addDrawableChild(CampfireButton.builder(Text.literal("✉ Invite"), b -> {
                     if (CampfireFabric.presence != null && CampfireFabric.presence.getCurrent() != null) {
                         var curr = CampfireFabric.presence.getCurrent();
                         CampfireFabric.presence.sendNetworkInvite(
@@ -275,7 +275,7 @@ public final class SocialScreen extends Screen {
             final String requester = incomingRequests.get(i);
             final int idx = i;
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("✔ Accept"), b -> {
+            addDrawableChild(CampfireButton.builder(Text.literal("✔ Accept"), b -> {
                 incomingRequests.remove(idx);
                 if (!friends.contains(requester)) {
                     friends.add(requester);
@@ -286,7 +286,7 @@ public final class SocialScreen extends Screen {
                 clearAndInit();
             }).dimensions(rowRight - 76, listY + 1, 54, 16).build());
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("✕"), b -> {
+            addDrawableChild(CampfireButton.builder(Text.literal("✕"), b -> {
                 incomingRequests.remove(idx);
                 saveRequests();
                 statusMsg = "Declined " + requester;
@@ -303,7 +303,7 @@ public final class SocialScreen extends Screen {
             final String pending = sentRequests.get(i);
             final int idx = i;
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("✕ Cancel"), b -> {
+            addDrawableChild(CampfireButton.builder(Text.literal("✕ Cancel"), b -> {
                 sentRequests.remove(idx);
                 saveRequests();
                 statusMsg = "Cancelled request to " + pending;

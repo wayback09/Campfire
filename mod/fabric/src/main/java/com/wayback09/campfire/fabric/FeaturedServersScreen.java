@@ -46,12 +46,12 @@ public final class FeaturedServersScreen extends Screen {
             int btnX = width - MARGIN - CONNECT_BTN_W;
             int btnY = y + (CARD_H - CONNECT_BTN_H) / 2 - 4;
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("▶ Connect"), b ->
+            addDrawableChild(CampfireButton.builder(Text.literal("▶ Connect"), b ->
                 connectToServer(server)
             ).dimensions(btnX, btnY, CONNECT_BTN_W, CONNECT_BTN_H).build());
         }
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
+        addDrawableChild(CampfireButton.builder(Text.literal("Done"), b -> close())
                 .dimensions(width / 2 - 100, height - 36, 200, 20).build());
     }
 

@@ -33,17 +33,17 @@ public final class AboutScreen extends Screen {
         int gap = 12;
         int btnY = cardY + CARD_H - 30;
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Settings  ⚙"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("Settings  ⚙"), b -> {
             if (client != null) {
                 client.setScreen(CampfireSettings.screen(this, CampfireFabric.CONFIG));
             }
         }).dimensions(cardX + (CARD_W - (btnW * 2 + gap)) / 2, btnY, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
+        addDrawableChild(CampfireButton.builder(Text.literal("Done"), b -> close())
             .dimensions(cardX + (CARD_W - (btnW * 2 + gap)) / 2 + btnW + gap, btnY, btnW, btnH).build());
 
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("✕"), b -> close())
+            CampfireButton.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
                 .build()
         );

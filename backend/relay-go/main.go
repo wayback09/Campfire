@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -19,10 +20,42 @@ import (
 type HostSession struct {
 	Code       string
 	Control    net.Conn
-	Writer     *bufio.Writer
+	SendChan   chan string
+	CloseOnce  sync.Once
+	Closed     chan struct{}
 	GuestPipes chan net.Conn
-	Mu         sync.Mutex
-	Closed     bool
+}
+
+func newHostSession(code string, conn net.Conn) *HostSession {
+	return &HostSession{
+		Code:       code,
+		Control:    conn,
+		SendChan:   make(chan string, 64),
+		Closed:     make(chan struct{}),
+		GuestPipes: make(chan net.Conn, 16),
+	}
+}
+
+func (s *HostSession) Close() {
+	s.CloseOnce.Do(func() {
+		close(s.Closed)
+		s.Control.Close()
+	})
+}
+
+// Send queues a message asynchronously to the host control channel.
+// Returns false if the session is closed or if the buffer is full.
+func (s *HostSession) Send(msg string) bool {
+	select {
+	case s.SendChan <- msg:
+		return true
+	case <-s.Closed:
+		return false
+	default:
+		log.Printf("[HOST] Send queue full for CAMP-%s, closing unresponsive session", s.Code)
+		s.Close()
+		return false
+	}
 }
 
 var (
@@ -35,21 +68,24 @@ var (
 
 const codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-// generateCodeLocked generates a unique 4-character room code.
+// generateCodeLocked generates a unique 4-character room code with a strict iteration limit.
 // MUST be called while holding sessionsMu write-lock.
-func generateCodeLocked() string {
-	for {
+func generateCodeLocked() (string, error) {
+	for attempts := 0; attempts < 100; attempts++ {
 		b := make([]byte, 4)
-		rand.Read(b)
+		if _, err := rand.Read(b); err != nil {
+			return "", fmt.Errorf("crypto/rand read failed: %w", err)
+		}
 		var sb strings.Builder
 		for i := 0; i < 4; i++ {
 			sb.WriteByte(codeChars[int(b[i])%len(codeChars)])
 		}
 		code := sb.String()
 		if _, exists := sessions[code]; !exists {
-			return code
+			return code, nil
 		}
 	}
+	return "", errors.New("server room capacity reached (no open codes available)")
 }
 
 func main() {
@@ -124,6 +160,13 @@ func handleIncoming(conn net.Conn) {
 		return
 	}
 
+	// HTTP health check support for uptime pingers
+	if strings.HasPrefix(peekStr, "GET ") || strings.HasPrefix(peekStr, "HEAD ") {
+		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\nContent-Length: 15\r\n\r\nCampfire Active\n"))
+		conn.Close()
+		return
+	}
+
 	handleMinecraftGuest(conn, bufReader)
 }
 
@@ -139,28 +182,66 @@ func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 	if len(requestedCode) >= 4 && sessions[requestedCode] == nil {
 		code = requestedCode
 	} else {
-		code = generateCodeLocked()
+		generated, err := generateCodeLocked()
+		if err != nil {
+			sessionsMu.Unlock()
+			log.Printf("[HOST REJECTED] %v", err)
+			conn.Write([]byte("ERROR " + err.Error() + "\n"))
+			conn.Close()
+			return
+		}
+		code = generated
 	}
 
-	session := &HostSession{
-		Code:       code,
-		Control:    conn,
-		Writer:     bufio.NewWriter(conn),
-		GuestPipes: make(chan net.Conn, 16),
-	}
+	session := newHostSession(code, conn)
 	sessions[code] = session
 	sessionsMu.Unlock()
 
 	log.Printf("[HOST CONNECTED] CAMP-%s from %s", code, conn.RemoteAddr())
 
-	ackMsg := fmt.Sprintf("OK %s\n", code)
-	if _, err := session.Control.Write([]byte(ackMsg)); err != nil {
-		log.Printf("[HOST ERROR] Failed to send ack to %s: %v", conn.RemoteAddr(), err)
-		conn.Close()
+	// Dedicated asynchronous writer goroutine for this session
+	go func() {
+		writer := bufio.NewWriter(session.Control)
+		for {
+			select {
+			case msg, ok := <-session.SendChan:
+				if !ok {
+					return
+				}
+				session.Control.SetWriteDeadline(time.Now().Add(5 * time.Second))
+				if _, err := writer.WriteString(msg); err != nil {
+					session.Close()
+					return
+				}
+				if err := writer.Flush(); err != nil {
+					session.Close()
+					return
+				}
+			case <-session.Closed:
+				return
+			}
+		}
+	}()
+
+	// Send acknowledgment to host mod
+	if !session.Send(fmt.Sprintf("OK %s\n", code)) {
+		sessionsMu.Lock()
+		delete(sessions, code)
+		sessionsMu.Unlock()
+		session.Close()
 		return
 	}
 
+	// Reader loop for control messages & heartbeats
 	go func() {
+		defer func() {
+			sessionsMu.Lock()
+			delete(sessions, code)
+			sessionsMu.Unlock()
+			session.Close()
+			log.Printf("[HOST DISCONNECTED] CAMP-%s", code)
+		}()
+
 		for {
 			line, err := r.ReadString('\n')
 			if err != nil {
@@ -168,19 +249,9 @@ func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 			}
 			line = strings.TrimSpace(line)
 			if line == "PING" {
-				session.Mu.Lock()
-				session.Writer.WriteString("PONG\n")
-				session.Writer.Flush()
-				session.Mu.Unlock()
+				session.Send("PONG\n")
 			}
 		}
-
-		sessionsMu.Lock()
-		delete(sessions, code)
-		sessionsMu.Unlock()
-		session.Closed = true
-		conn.Close()
-		log.Printf("[HOST DISCONNECTED] CAMP-%s", code)
 	}()
 }
 
@@ -256,7 +327,7 @@ func handleMinecraftGuest(guestConn net.Conn, r *bufio.Reader) {
 	session, exists := sessions[targetCode]
 	sessionsMu.RUnlock()
 
-	if !exists || session == nil || session.Closed {
+	if !exists || session == nil {
 		log.Printf("[GUEST REJECTED] World CAMP-%s not found or offline", targetCode)
 		guestConn.Close()
 		return
@@ -269,14 +340,7 @@ func handleMinecraftGuest(guestConn net.Conn, r *bufio.Reader) {
 	waitingGuests[guestID] = pipeChan
 	waitingGuestsMu.Unlock()
 
-	session.Mu.Lock()
-	_, writeErr := session.Writer.WriteString(fmt.Sprintf("NEW_GUEST %s\n", guestID))
-	if writeErr == nil {
-		session.Writer.Flush()
-	}
-	session.Mu.Unlock()
-
-	if writeErr != nil {
+	if !session.Send(fmt.Sprintf("NEW_GUEST %s\n", guestID)) {
 		waitingGuestsMu.Lock()
 		delete(waitingGuests, guestID)
 		waitingGuestsMu.Unlock()
@@ -285,7 +349,11 @@ func handleMinecraftGuest(guestConn net.Conn, r *bufio.Reader) {
 	}
 
 	select {
-	case hostPipe := <-pipeChan:
+	case hostPipe, ok := <-pipeChan:
+		if !ok || hostPipe == nil {
+			guestConn.Close()
+			return
+		}
 		defer hostPipe.Close()
 		defer guestConn.Close()
 
@@ -294,14 +362,35 @@ func handleMinecraftGuest(guestConn net.Conn, r *bufio.Reader) {
 			return
 		}
 
+		// Forward any remaining bytes pre-fetched by bufio.Reader
+		if r.Buffered() > 0 {
+			buf := make([]byte, r.Buffered())
+			if _, err := io.ReadFull(r, buf); err != nil {
+				return
+			}
+			if _, err := hostPipe.Write(buf); err != nil {
+				return
+			}
+		}
+
 		log.Printf("[BRIDGE ESTABLISHED] Guest %s <---> World CAMP-%s", guestConn.RemoteAddr(), targetCode)
-		splice(guestConn, hostPipe)
+		splice(guestConn, r, hostPipe)
 		log.Printf("[BRIDGE CLOSED] Guest %s disconnected from CAMP-%s", guestConn.RemoteAddr(), targetCode)
 
 	case <-time.After(5 * time.Second):
 		waitingGuestsMu.Lock()
 		delete(waitingGuests, guestID)
 		waitingGuestsMu.Unlock()
+
+		// Drain late pipe connection if it arrived concurrently to prevent socket leaks
+		select {
+		case latePipe := <-pipeChan:
+			if latePipe != nil {
+				latePipe.Close()
+			}
+		default:
+		}
+
 		log.Printf("[GUEST TIMEOUT] World CAMP-%s took too long to pipe for %s", targetCode, guestConn.RemoteAddr())
 		guestConn.Close()
 	}
@@ -321,7 +410,7 @@ func handleCampfireModGuest(guestConn net.Conn, r *bufio.Reader, command string)
 	session, exists := sessions[targetCode]
 	sessionsMu.RUnlock()
 
-	if !exists || session == nil || session.Closed {
+	if !exists || session == nil {
 		log.Printf("[MOD GUEST REJECTED] World CAMP-%s not found or offline", targetCode)
 		guestConn.Write([]byte("ERROR World not found or offline\n"))
 		guestConn.Close()
@@ -335,14 +424,7 @@ func handleCampfireModGuest(guestConn net.Conn, r *bufio.Reader, command string)
 	waitingGuests[guestID] = pipeChan
 	waitingGuestsMu.Unlock()
 
-	session.Mu.Lock()
-	_, writeErr := session.Writer.WriteString(fmt.Sprintf("NEW_GUEST %s\n", guestID))
-	if writeErr == nil {
-		session.Writer.Flush()
-	}
-	session.Mu.Unlock()
-
-	if writeErr != nil {
+	if !session.Send(fmt.Sprintf("NEW_GUEST %s\n", guestID)) {
 		waitingGuestsMu.Lock()
 		delete(waitingGuests, guestID)
 		waitingGuestsMu.Unlock()
@@ -351,7 +433,11 @@ func handleCampfireModGuest(guestConn net.Conn, r *bufio.Reader, command string)
 	}
 
 	select {
-	case hostPipe := <-pipeChan:
+	case hostPipe, ok := <-pipeChan:
+		if !ok || hostPipe == nil {
+			guestConn.Close()
+			return
+		}
 		defer hostPipe.Close()
 		defer guestConn.Close()
 
@@ -359,20 +445,35 @@ func handleCampfireModGuest(guestConn net.Conn, r *bufio.Reader, command string)
 			return
 		}
 
+		// Safely forward all bytes buffered by bufio.Reader
 		if r.Buffered() > 0 {
 			buf := make([]byte, r.Buffered())
-			r.Read(buf)
-			hostPipe.Write(buf)
+			if _, err := io.ReadFull(r, buf); err != nil {
+				return
+			}
+			if _, err := hostPipe.Write(buf); err != nil {
+				return
+			}
 		}
 
 		log.Printf("[BRIDGE ESTABLISHED] Guest %s <---> World CAMP-%s", guestConn.RemoteAddr(), targetCode)
-		splice(guestConn, hostPipe)
+		splice(guestConn, r, hostPipe)
 		log.Printf("[BRIDGE CLOSED] Guest %s disconnected from CAMP-%s", guestConn.RemoteAddr(), targetCode)
 
 	case <-time.After(5 * time.Second):
 		waitingGuestsMu.Lock()
 		delete(waitingGuests, guestID)
 		waitingGuestsMu.Unlock()
+
+		// Drain late pipe connection if it arrived concurrently to prevent socket leaks
+		select {
+		case latePipe := <-pipeChan:
+			if latePipe != nil {
+				latePipe.Close()
+			}
+		default:
+		}
+
 		log.Printf("[GUEST TIMEOUT] World CAMP-%s took too long to pipe for %s", targetCode, guestConn.RemoteAddr())
 		guestConn.Close()
 	}
@@ -392,22 +493,26 @@ func extractCode(addr string) string {
 	return raw
 }
 
-func splice(c1, c2 net.Conn) {
+func splice(c1 net.Conn, r1 io.Reader, c2 net.Conn) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		io.Copy(c1, c2)
-		if tc, ok := c1.(*net.TCPConn); ok {
+		if r1 != nil {
+			io.Copy(c2, r1)
+		} else {
+			io.Copy(c2, c1)
+		}
+		if tc, ok := c2.(*net.TCPConn); ok {
 			tc.CloseWrite()
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		io.Copy(c2, c1)
-		if tc, ok := c2.(*net.TCPConn); ok {
+		io.Copy(c1, c2)
+		if tc, ok := c1.(*net.TCPConn); ok {
 			tc.CloseWrite()
 		}
 	}()
@@ -434,6 +539,8 @@ func readVarInt(r io.Reader) (int, []byte, error) {
 
 func randInt() int64 {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return time.Now().UnixNano()
+	}
 	return int64(binary.BigEndian.Uint64(b))
 }

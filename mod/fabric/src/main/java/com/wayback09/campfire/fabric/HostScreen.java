@@ -48,19 +48,19 @@ public final class HostScreen extends Screen {
         int cardY = (height - CARD_H) / 2;
 
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("✕"), b -> close())
+            CampfireButton.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
                 .build()
         );
 
         if (server == null) {
             statusText = "Choose a singleplayer world to host:";
-            addDrawableChild(ButtonWidget.builder(Text.literal("Select & Host World..."), b -> {
+            addDrawableChild(CampfireButton.builder(Text.literal("Select & Host World..."), b -> {
                 CampfireFabric.pendingHostWorld = true;
                 client.setScreen(new net.minecraft.client.gui.screen.world.SelectWorldScreen(parent));
             }).dimensions(cardX + (CARD_W - 180) / 2, cardY + 80, 180, 20).build());
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("Back"), b -> close())
+            addDrawableChild(CampfireButton.builder(Text.literal("Back"), b -> close())
                     .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
             return;
         }
@@ -82,7 +82,7 @@ public final class HostScreen extends Screen {
         int btnH = 18;
         int btnX = cardX + (CARD_W - btnW) / 2;
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Game Mode: " + selectedMode.name()), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("Game Mode: " + selectedMode.name()), b -> {
             selectedMode = switch (selectedMode) {
                 case SURVIVAL -> GameMode.CREATIVE;
                 case CREATIVE -> GameMode.ADVENTURE;
@@ -92,17 +92,17 @@ public final class HostScreen extends Screen {
             b.setMessage(Text.literal("Game Mode: " + selectedMode.name()));
         }).dimensions(btnX, cardY + 46, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")), b -> {
             cheatsAllowed = !cheatsAllowed;
             b.setMessage(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")));
         }).dimensions(btnX, cardY + 68, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")), b -> {
             pvpEnabled = !pvpEnabled;
             b.setMessage(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")));
         }).dimensions(btnX, cardY + 90, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("🔥 Start Hosting World"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("🔥 Start Hosting World"), b -> {
             int port = 25565;
             boolean opened = server.openToLan(selectedMode, cheatsAllowed, port);
             if (!opened) {
@@ -120,7 +120,7 @@ public final class HostScreen extends Screen {
             }
         }).dimensions(btnX, cardY + 120, btnW, 20).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), b -> close())
+        addDrawableChild(CampfireButton.builder(Text.literal("Cancel"), b -> close())
                 .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
     }
 
@@ -171,7 +171,7 @@ public final class HostScreen extends Screen {
         int btnH = 18;
         int btnX = cardX + (CARD_W - btnW) / 2;
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Invite Code"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("📋 Copy Invite Code"), b -> {
             if (!inviteCode.startsWith("Gen")) {
                 if (client != null && client.keyboard != null) {
                     client.keyboard.setClipboard(inviteCode);
@@ -180,7 +180,7 @@ public final class HostScreen extends Screen {
             }
         }).dimensions(btnX, cardY + 98, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Direct IP:Port"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("📋 Copy Direct IP:Port"), b -> {
             if (!directAddress.isBlank()) {
                 if (client != null && client.keyboard != null) {
                     client.keyboard.setClipboard(directAddress);
@@ -189,7 +189,7 @@ public final class HostScreen extends Screen {
             }
         }).dimensions(btnX, cardY + 120, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("📨 Invite All Friends"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("📨 Invite All Friends"), b -> {
             if (!inviteCode.startsWith("Gen") && CampfireFabric.presence != null) {
                 var gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
                 java.nio.file.Path fPath = gameDir.resolve("config").resolve("campfire_friends.txt");
@@ -199,7 +199,7 @@ public final class HostScreen extends Screen {
                         for (String friend : java.nio.file.Files.readAllLines(fPath)) {
                             friend = friend.trim();
                             if (!friend.isEmpty()) {
-                                CampfireFabric.presence.sendInvite(friend, inviteCode, worldName);
+                                CampfireFabric.presence.sendNetworkInvite(CampfireFabric.getUsername(), friend, inviteCode, worldName);
                                 sent++;
                             }
                         }
@@ -209,7 +209,7 @@ public final class HostScreen extends Screen {
             }
         }).dimensions(btnX, cardY + 142, btnW, btnH).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
+        addDrawableChild(CampfireButton.builder(Text.literal("Done"), b -> close())
                 .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
     }
 

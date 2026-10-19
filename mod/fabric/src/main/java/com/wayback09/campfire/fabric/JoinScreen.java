@@ -35,10 +35,10 @@ public final class JoinScreen extends Screen {
         addSelectableChild(inputField);
         setInitialFocus(inputField);
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Join World"), b -> join())
+        addDrawableChild(CampfireButton.builder(Text.literal("Join World"), b -> join())
                 .dimensions(width / 2 - 100, height / 2 + 15, 200, 20).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), b -> close())
+        addDrawableChild(CampfireButton.builder(Text.literal("Cancel"), b -> close())
                 .dimensions(width / 2 - 100, height / 2 + 40, 200, 20).build());
     }
 

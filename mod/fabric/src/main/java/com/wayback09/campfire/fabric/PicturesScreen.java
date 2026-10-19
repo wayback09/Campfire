@@ -57,7 +57,7 @@ public final class PicturesScreen extends Screen {
 
         // Close '✕' button in top-right of modal card
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("✕"), b -> close())
+            CampfireButton.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + cardW - 22, cardY + 8, 16, 16)
                 .build()
         );
@@ -73,10 +73,10 @@ public final class PicturesScreen extends Screen {
         int totalW = prevW + copyW + nextW + folderW + doneW + gap * 4;
         int startX = cardX + (cardW - totalW) / 2;
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("< Prev"), b -> previousImage())
+        addDrawableChild(CampfireButton.builder(Text.literal("< Prev"), b -> previousImage())
                 .dimensions(startX, btnY, prevW, 18).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("📋 Copy Image"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("📋 Copy Image"), b -> {
             List<ScreenshotStore.Entry> list = store.list();
             if (!list.isEmpty() && currentIndex >= 0 && currentIndex < list.size()) {
                 ClipboardHelper.copyImage(list.get(currentIndex).file());
@@ -84,14 +84,14 @@ public final class PicturesScreen extends Screen {
             }
         }).dimensions(startX + prevW + gap, btnY, copyW, 18).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Next >"), b -> nextImage())
+        addDrawableChild(CampfireButton.builder(Text.literal("Next >"), b -> nextImage())
                 .dimensions(startX + prevW + copyW + gap * 2, btnY, nextW, 18).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("📁 Folder"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("📁 Folder"), b -> {
             net.minecraft.util.Util.getOperatingSystem().open(store.dir().toFile());
         }).dimensions(startX + prevW + copyW + nextW + gap * 3, btnY, folderW, 18).build());
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Done"), b -> close())
+        addDrawableChild(CampfireButton.builder(Text.literal("Done"), b -> close())
                 .dimensions(startX + prevW + copyW + nextW + folderW + gap * 4, btnY, doneW, 18).build());
     }
 

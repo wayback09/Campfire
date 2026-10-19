@@ -38,14 +38,14 @@ public final class AccountScreen extends Screen {
         int btnY = cardY + 94;
 
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("Add Account"), b -> {
+            CampfireButton.builder(Text.literal("Add Account"), b -> {
                 feedbackMessage = "Managed via your launcher profile";
             }).dimensions(btnX, btnY, btnWidth, btnHeight).build()
         );
 
         // Close '✕' button in top-right of dialog card
         addDrawableChild(
-            ButtonWidget.builder(Text.literal("✕"), b -> close())
+            CampfireButton.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + CARD_WIDTH - 22, cardY + 8, 16, 16)
                 .build()
         );
