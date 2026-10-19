@@ -14,11 +14,10 @@ import java.util.logging.Logger;
 
 /**
  * Campfire High-Performance Go Relay Tunnel Client.
- * Connects directly to the Campfire Go relay server (sgp-two.enzonic.com:25631)
- * to provide zero-configuration NAT traversal / world tunneling.
+ * Connects to the Campfire Go relay server (sgp-two.enzonic.com:25631)
+ * for NAT traversal and world tunneling.
  */
 public final class RelayClient {
-    // Dedicated Campfire relay server IP (sgp-two.enzonic.com)
     public static final String DEFAULT_RELAY_HOST = "168.144.109.206";
     public static final int DEFAULT_RELAY_PORT = 25631;
 
@@ -43,10 +42,6 @@ public final class RelayClient {
         }
     }
 
-    /**
-     * Hosts the given local Minecraft server port via the Go relay server.
-     * Completes with a RelaySession containing the assigned invite code.
-     */
     public static CompletableFuture<RelaySession> openTunnel(int localPort) {
         return openTunnel(DEFAULT_RELAY_HOST, DEFAULT_RELAY_PORT, localPort);
     }
@@ -65,7 +60,6 @@ public final class RelayClient {
                 BufferedReader reader = new BufferedReader(
                     new InputStreamReader(controlSocket.getInputStream(), StandardCharsets.UTF_8));
 
-                // Register as host
                 out.write("CAMPFIRE_HOST\n".getBytes(StandardCharsets.UTF_8));
                 out.flush();
 
@@ -97,7 +91,6 @@ public final class RelayClient {
                 }
                 future.complete(session);
 
-                // Control loop & keepalive
                 long lastPing = System.currentTimeMillis();
                 while (running.get() && !controlSocket.isClosed()) {
                     if (reader.ready()) {
@@ -167,20 +160,18 @@ public final class RelayClient {
 
     /**
      * Creates a local loopback forwarder for connecting to a relay-hosted world by code.
-     * Returns the local address to hand to Minecraft's ConnectScreen.
      */
     public static CompletableFuture<InetSocketAddress> startGuestForwarder(String rawCode) {
         CompletableFuture<InetSocketAddress> future = new CompletableFuture<>();
 
         Thread t = new Thread(() -> {
             try {
-                ServerSocket localServer = new ServerSocket(0); // auto-bind free ephemeral port
+                ServerSocket localServer = new ServerSocket(0);
                 int localPort = localServer.getLocalPort();
                 future.complete(new InetSocketAddress("127.0.0.1", localPort));
 
-                // Accept connection from local Minecraft client
                 Socket clientSocket = localServer.accept();
-                localServer.close(); // Only one client connection needed per join session
+                localServer.close();
 
                 Socket relaySocket = new Socket(DEFAULT_RELAY_HOST, DEFAULT_RELAY_PORT);
                 relaySocket.getOutputStream().write(("CAMPFIRE_JOIN " + rawCode + "\n").getBytes(StandardCharsets.UTF_8));

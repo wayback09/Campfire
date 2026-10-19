@@ -33,9 +33,9 @@ var (
 	waitingGuestsMu sync.Mutex
 )
 
-const codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // Ambiguity-free Base32 (no 0, 1, I, O)
+const codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-// generateCodeLocked generates a 4-character alphanumeric room code.
+// generateCodeLocked generates a unique 4-character room code.
 // MUST be called while holding sessionsMu write-lock.
 func generateCodeLocked() string {
 	for {
@@ -85,11 +85,6 @@ func main() {
 }
 
 func handleIncoming(conn net.Conn) {
-	// Read initial peek buffer to identify connection protocol:
-	// 1. CAMPFIRE_HOST <code?>
-	// 2. CAMPFIRE_PIPE <guest_id>
-	// 3. CAMPFIRE_JOIN <code?>
-	// 4. Vanilla Minecraft handshake packet
 	bufReader := bufio.NewReader(conn)
 	peek, err := bufReader.Peek(13)
 	if err != nil {
@@ -129,11 +124,9 @@ func handleIncoming(conn net.Conn) {
 		return
 	}
 
-	// Otherwise, vanilla Minecraft client direct handshake
 	handleMinecraftGuest(conn, bufReader)
 }
 
-// handleHostRegistration registers a new world hosting tunnel from the Campfire mod.
 func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 	parts := strings.Fields(command)
 	var requestedCode string
@@ -160,7 +153,6 @@ func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 
 	log.Printf("[HOST CONNECTED] CAMP-%s from %s", code, conn.RemoteAddr())
 
-	// Acknowledge back to host mod with the assigned room code
 	ackMsg := fmt.Sprintf("OK %s\n", code)
 	if _, err := session.Control.Write([]byte(ackMsg)); err != nil {
 		log.Printf("[HOST ERROR] Failed to send ack to %s: %v", conn.RemoteAddr(), err)
@@ -168,7 +160,6 @@ func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 		return
 	}
 
-	// Keepalive & ping-pong loop
 	go func() {
 		for {
 			line, err := r.ReadString('\n')
@@ -184,7 +175,6 @@ func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 			}
 		}
 
-		// Cleanup on disconnect
 		sessionsMu.Lock()
 		delete(sessions, code)
 		sessionsMu.Unlock()
@@ -194,7 +184,6 @@ func handleHostRegistration(conn net.Conn, r *bufio.Reader, command string) {
 	}()
 }
 
-// handleHostPipe matches a host reverse connection to a waiting guest.
 func handleHostPipe(hostPipe net.Conn, command string) {
 	parts := strings.Fields(command)
 	if len(parts) < 2 {
@@ -218,7 +207,8 @@ func handleHostPipe(hostPipe net.Conn, command string) {
 	ch <- hostPipe
 }
 
-// handleMinecraftGuest handles vanilla Minecraft clients entering via custom domain / SRV record.
+// handleMinecraftGuest parses the vanilla Minecraft Handshake packet (0x00)
+// and bridges the connection by target hostname.
 func handleMinecraftGuest(guestConn net.Conn, r *bufio.Reader) {
 	packetLength, lenBytes, err := readVarInt(r)
 	if err != nil || packetLength <= 0 {
@@ -234,12 +224,12 @@ func handleMinecraftGuest(guestConn net.Conn, r *bufio.Reader) {
 
 	dataBuf := bytes.NewReader(packetData)
 	packetID, _, err := readVarInt(dataBuf)
-	if err != nil || packetID != 0x00 { // Handshake packet ID is 0x00
+	if err != nil || packetID != 0x00 {
 		guestConn.Close()
 		return
 	}
 
-	// Protocol version (VarInt)
+	// Protocol version
 	_, _, err = readVarInt(dataBuf)
 	if err != nil {
 		guestConn.Close()

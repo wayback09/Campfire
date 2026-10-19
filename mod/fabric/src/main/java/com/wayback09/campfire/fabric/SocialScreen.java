@@ -222,7 +222,6 @@ public final class SocialScreen extends Screen {
 
             int rowRight = cardX + CARD_W - 16;
 
-            // Remove [✕]
             addDrawableChild(ButtonWidget.builder(Text.literal("✕"), b -> {
                 friends.remove(index);
                 saveFriends();
@@ -230,7 +229,6 @@ public final class SocialScreen extends Screen {
                 clearAndInit();
             }).dimensions(rowRight - 18, listY + 1, 18, 16).build());
 
-            // [▶ Join] or [✉ Invite]
             if (fp != null && fp.isHosting()) {
                 addDrawableChild(ButtonWidget.builder(Text.literal("▶ Join"), b -> {
                     if (client != null) {
@@ -277,7 +275,6 @@ public final class SocialScreen extends Screen {
             final String requester = incomingRequests.get(i);
             final int idx = i;
 
-            // Accept
             addDrawableChild(ButtonWidget.builder(Text.literal("✔ Accept"), b -> {
                 incomingRequests.remove(idx);
                 if (!friends.contains(requester)) {
@@ -289,7 +286,6 @@ public final class SocialScreen extends Screen {
                 clearAndInit();
             }).dimensions(rowRight - 76, listY + 1, 54, 16).build());
 
-            // Decline
             addDrawableChild(ButtonWidget.builder(Text.literal("✕"), b -> {
                 incomingRequests.remove(idx);
                 saveRequests();
@@ -300,16 +296,13 @@ public final class SocialScreen extends Screen {
             listY += 22;
         }
 
-        // Space before sent
         listY += 14;
 
-        // Sent requests
         for (int i = 0; i < sentRequests.size(); i++) {
             if (listY + 20 > maxListY) break;
             final String pending = sentRequests.get(i);
             final int idx = i;
 
-            // Cancel
             addDrawableChild(ButtonWidget.builder(Text.literal("✕ Cancel"), b -> {
                 sentRequests.remove(idx);
                 saveRequests();
@@ -356,22 +349,18 @@ public final class SocialScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // 1. Render parent screen underneath
         if (parent != null) {
             parent.render(ctx, -1, -1, delta);
         }
 
-        // 2. Dark translucent backdrop
         ctx.fill(0, 0, width, height, 0x80000000);
 
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // 3. Floating Modal Card background & border
         ctx.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
         drawBorder(ctx, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
-        // 4. Header title
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire Social"), width / 2, cardY + 12, 0xFFFF9900);
 
         // Tab underline indicator

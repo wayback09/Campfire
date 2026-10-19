@@ -64,22 +64,18 @@ public final class AboutScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 1. Render parent screen underneath
         if (parent != null) {
             parent.render(context, -1, -1, delta);
         }
 
-        // 2. Dim background
         context.fill(0, 0, width, height, 0x80000000);
 
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // 3. Card container & border
         context.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
         drawBorder(context, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
-        // 4. Header
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire"), width / 2, cardY + 14, 0xFFFF9900);
 
         String modVer = net.fabricmc.loader.api.FabricLoader.getInstance()
@@ -93,7 +89,6 @@ public final class AboutScreen extends Screen {
 
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("v" + modVer + " • Fabric (" + mcVer + ")"), width / 2, cardY + 27, 0xFF94A3B8);
 
-        // 5. User Profile Card — 32px centred head, username & Online badge centred below
         int userRowX = cardX + 16;
         int userRowY = cardY + 44;
         int userRowW = CARD_W - 32;
@@ -129,13 +124,11 @@ public final class AboutScreen extends Screen {
             context.drawCenteredTextWithShadow(textRenderer, Text.literal("👤"), faceX + faceSize / 2, faceY + 10, 0xFFFFFFFF);
         }
 
-        // Username & Online status centred below head
         String username = client != null && client.getSession() != null ? client.getSession().getUsername() : "Player";
         int textCx = userRowX + userRowW / 2;
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(username), textCx, faceY + faceSize + 4, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("● Online"), textCx, faceY + faceSize + 16, 0xFF22C55E);
 
-        // Render buttons & widgets
         super.render(context, mouseX, mouseY, delta);
     }
 

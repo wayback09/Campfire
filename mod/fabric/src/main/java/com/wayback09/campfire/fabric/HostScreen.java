@@ -13,7 +13,6 @@ import net.minecraft.world.GameMode;
 
 /**
  * World hosting modal screen for Campfire on Fabric.
- * Sleek floating dark card matching the Campfire modal design system.
  */
 public final class HostScreen extends Screen {
     private final Screen parent;
@@ -25,7 +24,6 @@ public final class HostScreen extends Screen {
     private String directAddress = "";
     private boolean isHosting = false;
 
-    // Pre-host settings
     private GameMode selectedMode = GameMode.SURVIVAL;
     private boolean cheatsAllowed = false;
     private boolean pvpEnabled = true;
@@ -49,7 +47,6 @@ public final class HostScreen extends Screen {
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // Close '✕' button in top-right of modal card
         addDrawableChild(
             ButtonWidget.builder(Text.literal("✕"), b -> close())
                 .dimensions(cardX + CARD_W - 22, cardY + 8, 16, 16)
@@ -85,7 +82,6 @@ public final class HostScreen extends Screen {
         int btnH = 18;
         int btnX = cardX + (CARD_W - btnW) / 2;
 
-        // Game Mode Cycler
         addDrawableChild(ButtonWidget.builder(Text.literal("Game Mode: " + selectedMode.name()), b -> {
             selectedMode = switch (selectedMode) {
                 case SURVIVAL -> GameMode.CREATIVE;
@@ -96,19 +92,16 @@ public final class HostScreen extends Screen {
             b.setMessage(Text.literal("Game Mode: " + selectedMode.name()));
         }).dimensions(btnX, cardY + 46, btnW, btnH).build());
 
-        // Cheats Toggle
         addDrawableChild(ButtonWidget.builder(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")), b -> {
             cheatsAllowed = !cheatsAllowed;
             b.setMessage(Text.literal("Allow Cheats: " + (cheatsAllowed ? "ON" : "OFF")));
         }).dimensions(btnX, cardY + 68, btnW, btnH).build());
 
-        // PVP Toggle
         addDrawableChild(ButtonWidget.builder(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")), b -> {
             pvpEnabled = !pvpEnabled;
             b.setMessage(Text.literal("PVP: " + (pvpEnabled ? "ON" : "OFF")));
         }).dimensions(btnX, cardY + 90, btnW, btnH).build());
 
-        // Start Host Button
         addDrawableChild(ButtonWidget.builder(Text.literal("🔥 Start Hosting World"), b -> {
             int port = 25565;
             boolean opened = server.openToLan(selectedMode, cheatsAllowed, port);
@@ -136,14 +129,12 @@ public final class HostScreen extends Screen {
         statusText = "World is live! Connecting to Campfire Servers...";
 
         String worldName = server.getSaveProperties().getLevelName();
-        // Immediately generate a local invite code so code is never "Generating..."
         String localIp = UpnpHelper.getLocalIp();
         if (inviteCode.startsWith("Gen")) {
             inviteCode = InviteCode.encode(localIp, hostPort);
             directAddress = localIp + ":" + hostPort;
         }
 
-        // Connect to Cloud Relay first, fallback to UPnP if unreachable
         if (!upnpResolved) {
             upnpResolved = true;
             statusText = "World is live! Connecting to Campfire Servers...";
@@ -201,15 +192,14 @@ public final class HostScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.literal("📨 Invite All Friends"), b -> {
             if (!inviteCode.startsWith("Gen") && CampfireFabric.presence != null) {
                 var gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
-                java.nio.file.Path friendsFile = gameDir.resolve("campfire/friends.json");
+                java.nio.file.Path fPath = gameDir.resolve("config").resolve("campfire_friends.txt");
                 int sent = 0;
-                if (java.nio.file.Files.exists(friendsFile)) {
+                if (java.nio.file.Files.exists(fPath)) {
                     try {
-                        for (String friend : java.nio.file.Files.readAllLines(friendsFile)) {
-                            String f = friend.trim();
-                            if (!f.isEmpty()) {
-                                CampfireFabric.presence.sendNetworkInvite(
-                                    CampfireFabric.getUsername(), f, inviteCode, worldName);
+                        for (String friend : java.nio.file.Files.readAllLines(fPath)) {
+                            friend = friend.trim();
+                            if (!friend.isEmpty()) {
+                                CampfireFabric.presence.sendInvite(friend, inviteCode, worldName);
                                 sent++;
                             }
                         }
@@ -236,27 +226,22 @@ public final class HostScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // 1. Render parent underneath
         if (parent != null) {
             parent.render(ctx, -1, -1, delta);
         }
 
-        // 2. Translucent backdrop
         ctx.fill(0, 0, width, height, 0x80000000);
 
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // 3. Floating Modal Card background & border
         ctx.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
         drawBorder(ctx, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
-        // 4. Header title & status
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire World Host"), width / 2, cardY + 12, 0xFFFF9900);
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(statusText), width / 2, cardY + 26, 0xFF94A3B8);
 
         if (isHosting) {
-            // Invite code pill card
             int pillX = cardX + 16;
             int pillY = cardY + 44;
             int pillW = CARD_W - 32;
