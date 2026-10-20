@@ -1,5 +1,6 @@
 package com.wayback09.campfire.fabric;
 
+import com.wayback09.campfire.fabric.mixin.ScreenAccessor;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
@@ -98,9 +99,18 @@ public final class CampfireMenuHooks {
         }
     }
 
+    private static <T extends ClickableWidget> T addChild(Screen screen, T widget) {
+        if (screen instanceof ScreenAccessor accessor) {
+            accessor.campfire$addDrawableChild(widget);
+        } else {
+            Screens.getButtons(screen).add(widget);
+        }
+        return widget;
+    }
+
     private static void injectMultiplayerButtons(MinecraftClient client, MultiplayerScreen screen, int scaledWidth) {
         // Top-left: "🔥 Join with Code"
-        Screens.getButtons(screen).add(
+        addChild(screen,
             CampfireButton.builder(Text.literal("🔥 Join with Code"), b ->
                 client.setScreen(new JoinScreen(screen))
             ).dimensions(10, 8, 115, 20).build()
@@ -108,7 +118,7 @@ public final class CampfireMenuHooks {
 
         // Top-right: filter toggle — "⭐ Featured Servers" / "✦ Featured Only  ✕"
         String label = filterFeaturedOnly ? "✦ Featured Only  ✕" : "⭐ Featured Servers";
-        Screens.getButtons(screen).add(
+        addChild(screen,
             CampfireButton.builder(Text.literal(label), b -> {
                 filterFeaturedOnly = !filterFeaturedOnly;
                 if (!filterFeaturedOnly) {
@@ -141,7 +151,7 @@ public final class CampfireMenuHooks {
         if (compact) {
             // === COMPACT MODE (Window reduced, small screens) ===
             // 1. Top-Left: Compact 20x20 avatar icon
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("👤"), b ->
                     client.setScreen(new AccountScreen(screen))
                 ).dimensions(8, 8, 20, BUTTON_HEIGHT)
@@ -150,7 +160,7 @@ public final class CampfireMenuHooks {
             );
 
             // 2. Top-Right: Compact 20x20 brand icon
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("🔥"), b ->
                     client.setScreen(new AboutScreen(screen))
                 ).dimensions(width - 20 - 8, 8, 20, BUTTON_HEIGHT)
@@ -164,7 +174,7 @@ public final class CampfireMenuHooks {
             // Row 1: Host / Invite
             Text hostTooltip = inGame ? Text.literal("Invite / Host World") : Text.literal("Host World");
             Text hostIcon = inGame ? Text.literal("✉") : Text.literal("🌐");
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(hostIcon, b ->
                     client.setScreen(new HostScreen(screen))
                 ).dimensions(x, startY, 20, BUTTON_HEIGHT)
@@ -173,7 +183,7 @@ public final class CampfireMenuHooks {
             );
 
             // Row 2: Social
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("👥"), b ->
                     client.setScreen(new SocialScreen(screen))
                 ).dimensions(x, startY + 24, 20, BUTTON_HEIGHT)
@@ -182,7 +192,7 @@ public final class CampfireMenuHooks {
             );
 
             // Row 3: Pictures
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("🖼"), b ->
                     client.setScreen(new PicturesScreen(screen, CampfireFabric.screenshots))
                 ).dimensions(x, startY + 48, 20, BUTTON_HEIGHT)
@@ -191,7 +201,7 @@ public final class CampfireMenuHooks {
             );
 
             // Row 4: Settings
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("⚙"), b ->
                     client.setScreen(CampfireSettings.screen(screen, CampfireFabric.CONFIG))
                 ).dimensions(x, startY + 72, 20, BUTTON_HEIGHT)
@@ -200,7 +210,7 @@ public final class CampfireMenuHooks {
             );
 
             // Row 5: Screenshots folder
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("📁"), b -> {
                     if (CampfireFabric.screenshots != null) {
                         net.minecraft.util.Util.getOperatingSystem().open(CampfireFabric.screenshots.dir().toFile());
@@ -213,7 +223,7 @@ public final class CampfireMenuHooks {
             // === EXPANDED MODE (Wider screens) ===
             // 1. Top-Left: Player profile pill ("👤 Username")
             int userBtnWidth = Math.max(76, Math.min(120, client.textRenderer.getWidth("👤 " + username) + 16));
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("👤 " + username), b ->
                     client.setScreen(new AccountScreen(screen))
                 ).dimensions(10, 10, userBtnWidth, BUTTON_HEIGHT)
@@ -223,7 +233,7 @@ public final class CampfireMenuHooks {
 
             // 2. Top-Right: Campfire brand pill ("🔥 Campfire")
             int brandWidth = 84;
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("🔥 Campfire"), b ->
                     client.setScreen(new AboutScreen(screen))
                 ).dimensions(width - brandWidth - 10, 10, brandWidth, BUTTON_HEIGHT)
@@ -236,7 +246,7 @@ public final class CampfireMenuHooks {
 
             // Row 1: Host / Invite
             Text hostText = inGame ? Text.literal("Invite / Host  ✉") : Text.literal("Host World  🌐");
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(hostText, b ->
                     client.setScreen(new HostScreen(screen))
                 ).dimensions(x, startY, SIDEBAR_WIDTH, BUTTON_HEIGHT)
@@ -245,7 +255,7 @@ public final class CampfireMenuHooks {
             );
 
             // Row 2: Social
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("Social  👥"), b ->
                     client.setScreen(new SocialScreen(screen))
                 ).dimensions(x, startY + 24, SIDEBAR_WIDTH, BUTTON_HEIGHT)
@@ -254,7 +264,7 @@ public final class CampfireMenuHooks {
             );
 
             // Row 3: Pictures
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("Pictures  🖼"), b ->
                     client.setScreen(new PicturesScreen(screen, CampfireFabric.screenshots))
                 ).dimensions(x, startY + 48, SIDEBAR_WIDTH, BUTTON_HEIGHT)
@@ -266,7 +276,7 @@ public final class CampfireMenuHooks {
             int folderBtnWidth = 20;
             int settingsBtnWidth = SIDEBAR_WIDTH - folderBtnWidth - 4; // 104 - 20 - 4 = 80px
 
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("📁"), b -> {
                     if (CampfireFabric.screenshots != null) {
                         net.minecraft.util.Util.getOperatingSystem().open(CampfireFabric.screenshots.dir().toFile());
@@ -276,7 +286,7 @@ public final class CampfireMenuHooks {
                  .build()
             );
 
-            Screens.getButtons(screen).add(
+            addChild(screen,
                 CampfireButton.builder(Text.literal("Settings  ⚙"), b ->
                     client.setScreen(CampfireSettings.screen(screen, CampfireFabric.CONFIG))
                 ).dimensions(x + folderBtnWidth + 4, startY + 72, settingsBtnWidth, BUTTON_HEIGHT)

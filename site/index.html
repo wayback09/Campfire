@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campfire – Minecraft LAN Server Without Port Forwarding</title>
+  <meta name="description" content="Campfire is a free, open-source peer-to-peer world hosting and social mod for Minecraft. Open your singleplayer world to friends instantly without port forwarding." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%A5</text></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("campfire-theme");
+        document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+</head>
+<body>
+  <canvas class="embers" id="embers" aria-hidden="true"></canvas>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- ===== Header (83px, transparent on top) ===== -->
+  <header class="site-header" id="site-header">
+    <div class="container nav-container">
+      <a class="brand" href="#top">
+        <img src="assets/minecraft_title.png" alt="Campfire" class="brand-logo" />
+      </a>
+
+      <ul class="nav-links" id="nav-links">
+        <li><a class="elementor-item active" href="#top">Home</a></li>
+        <li><a class="elementor-item" href="#features">Features</a></li>
+        <li><a class="elementor-item" href="#how">Installation</a></li>
+        <li><a class="elementor-item" href="#security">Security & Privacy</a></li>
+        <li><a class="elementor-item" href="#faq">FAQ’s</a></li>
+        <li><a class="elementor-item" href="#get">Download</a></li>
+      </ul>
+
+      <div class="nav-right">
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">
+        <span class="theme-icon icon-sun" aria-hidden="true">☀</span>
+        <span class="theme-icon icon-moon" aria-hidden="true">☾</span>
+      </button>
+
+      <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ===== Hero & Conversion ===== -->
+    <section class="hero" id="home">
+      <div class="container hero-container">
+        <div class="hero-content reveal">
+          <span class="hero-badge">Fabric 1.21.x · NeoForge WIP</span>
+          <h1 class="hero-title">Campfire Streamlined LAN Hosting for Minecraft Players</h1>
+          <p class="hero-sub">
+            Both players install the mod, share an invite code, and connect directly — no port forwarding, no rented servers, no extra configuration.
+          </p>
+          <div class="hero-actions">
+            <a class="elementor-button btn-primary" href="#get">Download</a>
+            <a class="elementor-button btn-outline" href="https://github.com/wayback09/Campfire" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+          </div>
+        </div>
+
+        <div class="hero-media reveal">
+          <div class="media-frame">
+            <img src="assets/Campfire.gif" alt="Campfire Animation" />
+          </div>
+          <p class="media-caption">Open your world. Share the code. Play together.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Features Section ===== -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Features</h2>
+          <p class="section-sub">Built for seamless multiplayer sessions without subscriptions or port forwarding.</p>
+        </div>
+
+        <div class="grid features-grid">
+          <div class="card reveal">
+            <h3>P2P World Hosting</h3>
+            <p>Open any singleplayer world to friends over the internet or LAN instantly with UPnP and direct TCP relaying.</p>
+          </div>
+          <div class="card reveal">
+            <h3>Instant Invite Codes</h3>
+            <p>Generate clean codes like <code>CAMP-XXXXX-XXXXX</code> that friends paste straight into their multiplayer screen.</p>
+          </div>
+          <div class="card reveal">
+            <h3>Live Friend Presence</h3>
+            <p>Track real-time status — <em>In Menu, Singleplayer, Hosting, Multiplayer</em> — with one-click joining.</p>
+          </div>
+          <div class="card reveal">
+            <h3>Screenshot HUD Toasts</h3>
+            <p>Capture memories in game with instant UI toasts and automatic clipboard copying for local sharing.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== How It Works / Installation ===== -->
+    <section class="section section-alt" id="how">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>How It Works & Installation</h2>
+          <p class="section-sub">Get up and running in under a minute with Java 21 and Fabric Loader.</p>
+        </div>
+
+        <div class="steps-wrapper reveal">
+          <div class="step-card">
+            <h3>1. Install the Mod</h3>
+            <p>Drop the Campfire JAR into the <code>mods</code> folder on both PCs — host and friends.</p>
+          </div>
+          <div class="step-card">
+            <h3>2. Host Your World</h3>
+            <p>Open your singleplayer world and click <strong>Host</strong> on the Campfire menu.</p>
+          </div>
+          <div class="step-card">
+            <h3>3. Share & Play</h3>
+            <p>Send the invite code to your friends. They enter it and join directly — no port forwarding.</p>
+          </div>
+        </div>
+
+        <div class="code-box-wrapper reveal">
+          <h3>Build from Source</h3>
+          <pre class="code-block"><code>git clone https://github.com/wayback09/Campfire.git
+cd Campfire
+./gradlew :mod:fabric:build</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Security & Privacy ===== -->
+    <section class="section" id="security">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Security & Privacy</h2>
+          <p class="section-sub">Your worlds belong to you, we dont collect any data.</p>
+        </div>
+
+        <div class="security-grid reveal">
+          <div class="card">
+            <h3>No Paid Cosmetics</h3>
+            <p>No microtransactions, no storefronts, and no hidden subscriptions. Completely free and open-source.</p>
+          </div>
+          <div class="card">
+            <h3>Local Screenshots</h3>
+            <p>All captured moments stay on your machine. No telemetry or data collection.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ's ===== -->
+    <section class="section section-alt" id="faq">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>FAQ’s</h2>
+          <p class="section-sub">Common questions about Campfire hosting.</p>
+        </div>
+
+        <div class="faq-list reveal">
+          <details class="e-n-accordion-item">
+            <summary class="e-n-accordion-item-title">What is Campfire?</summary>
+            <div class="e-n-accordion-item-content">
+              <p>Campfire is a free, open-source peer-to-peer world hosting and social mod for Minecraft that lets you host LAN worlds online without port forwarding.</p>
+            </div>
+          </details>
+
+          <details class="e-n-accordion-item">
+            <summary class="e-n-accordion-item-title">Do my friends need the mod installed?</summary>
+            <div class="e-n-accordion-item-content">
+              <p>Yes — both the host and joining players need Campfire installed on the same Minecraft version. The invite code handling and connection logic run on both clients.</p>
+            </div>
+          </details>
+
+          <details class="e-n-accordion-item">
+            <summary class="e-n-accordion-item-title">Is Campfire free to use?</summary>
+            <div class="e-n-accordion-item-content">
+              <p>Yes, Campfire is 100% free and open-source under the GNU GPL-3.0 license with no paid tiers or microtransactions.</p>
+            </div>
+          </details>
+
+          <details class="e-n-accordion-item">
+            <summary class="e-n-accordion-item-title">Do I need port forwarding?</summary>
+            <div class="e-n-accordion-item-content">
+              <p>No port forwarding is required. Campfire automatically attempts UPnP port opening and falls back to a lightweight TCP relay when necessary.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Get / Download Section ===== -->
+    <section class="section" id="get">
+      <div class="container text-center">
+        <div class="section-head reveal">
+          <h2>Ready to Play?</h2>
+          <p class="section-sub">Download the latest release or check out the source code on GitHub.</p>
+        </div>
+        <div class="cta-row reveal">
+          <a class="elementor-button btn-primary" href="https://github.com/wayback09/Campfire/releases" target="_blank" rel="noopener noreferrer">Download on GitHub</a>
+          <a class="elementor-button btn-outline" href="https://github.com/wayback09/Campfire" target="_blank" rel="noopener noreferrer">Source Code</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-info">
+        <img src="assets/minecraft_title.png" alt="Campfire" class="footer-logo" />
+        <p>Campfire makes Minecraft LAN hosting easy, free, and secure without port forwarding.</p>
+      </div>
+      <div class="footer-legal">
+        <p>© Copyright | <span id="year">2026</span> | Campfire / wayback09 | All Rights Reserved</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>

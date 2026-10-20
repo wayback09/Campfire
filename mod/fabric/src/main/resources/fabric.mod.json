@@ -19,6 +19,12 @@
     "client": ["com.wayback09.campfire.fabric.CampfireFabric"],
     "modmenu": ["com.wayback09.campfire.fabric.CampfireModMenu"]
   },
+  "mixins": [
+    {
+      "config": "campfire.mixins.json",
+      "environment": "client"
+    }
+  ],
   "depends": {
     "fabricloader": ">=0.16.14",
     "fabric-api": "*",

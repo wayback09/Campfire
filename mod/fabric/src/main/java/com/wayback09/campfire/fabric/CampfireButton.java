@@ -2,12 +2,16 @@ package com.wayback09.campfire.fabric;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.tooltip.Tooltip;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 
-public class CampfireButton extends PressableWidget {
+/**
+ * Custom modern button widget for Campfire UI.
+ * Extends ClickableWidget directly to avoid PressableWidget's final renderWidget method.
+ */
+public class CampfireButton extends ClickableWidget {
     public interface PressAction {
         void onPress(CampfireButton button);
     }
@@ -82,11 +86,40 @@ public class CampfireButton extends PressableWidget {
         }
     }
 
-    @Override
+    private long lastPressTime = 0;
+
     public void onPress() {
+        long now = System.currentTimeMillis();
+        if (now - lastPressTime < 150) {
+            return;
+        }
+        lastPressTime = now;
         if (this.onPress != null) {
             this.onPress.onPress(this);
         }
+    }
+
+    @Override
+    public void playDownSound(net.minecraft.client.sound.SoundManager soundManager) {
+        super.playDownSound(soundManager);
+        this.onPress();
+    }
+
+    @Override
+    public void onClick(double mouseX, double mouseY) {
+        this.onPress();
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!this.active || !this.visible) {
+            return false;
+        }
+        if (keyCode == 257 || keyCode == 32 || keyCode == 335) {
+            this.playDownSound(MinecraftClient.getInstance().getSoundManager());
+            return true;
+        }
+        return false;
     }
 
     @Override

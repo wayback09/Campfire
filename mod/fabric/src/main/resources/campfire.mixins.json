@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.wayback09.campfire.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ScreenAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
