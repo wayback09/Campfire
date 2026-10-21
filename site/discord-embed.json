@@ -34,7 +34,13 @@
           {
             "type": 2,
             "style": 5,
-            "label": "Powered by Enzonic",
+            "label": "Enzonic Relay",
+            "url": "https://relay.enzonic.com/"
+          },
+          {
+            "type": 2,
+            "style": 5,
+            "label": "Enzonic Cloud",
             "url": "https://enzonic.com/r/CQ3WBGRL"
           }
         ]

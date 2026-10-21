@@ -579,6 +579,12 @@ code {
 .footer-sponsor {
   margin: 0.75rem 0;
 }
+.sponsor-cards-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 .sponsor-card {
   display: inline-flex;
   align-items: center;

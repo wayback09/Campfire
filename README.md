@@ -47,8 +47,9 @@ The compiled mod JAR is placed in `mod/fabric/build/libs/` as:
 
 ## Infrastructure & Sponsorship
 
-Campfire's relay network and hosting infrastructure is proudly **Powered by [Enzonic](https://enzonic.com/r/CQ3WBGRL)**.  
-Explore [Enzonic Cloud](https://enzonic.com/r/CQ3WBGRL) for high-performance Minecraft servers, free hosting, and reliable game infrastructure.
+Campfire's multi-region tunneling network is proudly **Powered by [Enzonic](https://enzonic.com/r/CQ3WBGRL)** and the **[Enzonic Relay Network](https://relay.enzonic.com/)**.  
+- **[Enzonic Cloud](https://enzonic.com/r/CQ3WBGRL)** High-performance Minecraft servers, free tier, and reliable game hosting.
+- **[Enzonic Relay](https://relay.enzonic.com/)** Fast, low-latency Minecraft server tunnels across global regions without port forwarding.
 
 ---
 
