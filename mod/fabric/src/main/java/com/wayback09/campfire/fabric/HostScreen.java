@@ -6,18 +6,18 @@ import com.wayback09.campfire.UpnpHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.Text;
 import net.minecraft.world.GameMode;
 
 /**
  * World hosting modal screen for Campfire on Fabric.
+ * Powered by Enzonic Relay Network infrastructure.
  */
 public final class HostScreen extends Screen {
     private final Screen parent;
     private static final int CARD_W = 300;
-    private static final int CARD_H = 220;
+    private static final int CARD_H = 236;
 
     private String inviteCode = "Generating...";
     private String statusText = "Configuring world host...";
@@ -61,7 +61,7 @@ public final class HostScreen extends Screen {
             }).dimensions(cardX + (CARD_W - 180) / 2, cardY + 80, 180, 20).build());
 
             addDrawableChild(CampfireButton.builder(Text.literal("Back"), b -> close())
-                    .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
+                    .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 34, 100, 18).build());
             return;
         }
 
@@ -76,7 +76,7 @@ public final class HostScreen extends Screen {
     }
 
     private void setupPreHostUI(IntegratedServer server, int cardX, int cardY) {
-        statusText = "Configure rules before opening your world:";
+        statusText = "Host world via Enzonic Relay tunnels:";
 
         int btnW = 190;
         int btnH = 18;
@@ -118,15 +118,15 @@ public final class HostScreen extends Screen {
             } else {
                 statusText = "Failed to open world to LAN.";
             }
-        }).dimensions(btnX, cardY + 120, btnW, 20).build());
+        }).dimensions(btnX, cardY + 118, btnW, 20).build());
 
         addDrawableChild(CampfireButton.builder(Text.literal("Cancel"), b -> close())
-                .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
+                .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 34, 100, 18).build());
     }
 
     private void setupActiveHostUI(IntegratedServer server, int cardX, int cardY) {
         int hostPort = server.getServerPort();
-        statusText = "World is live! Connecting to Campfire Servers...";
+        statusText = "World live! Connecting Enzonic Relay...";
 
         String worldName = server.getSaveProperties().getLevelName();
         String localIp = UpnpHelper.getLocalIp();
@@ -137,11 +137,11 @@ public final class HostScreen extends Screen {
 
         if (!upnpResolved) {
             upnpResolved = true;
-            statusText = "World is live! Connecting to Campfire Servers...";
+            statusText = "Connecting to Enzonic Relay...";
             com.wayback09.campfire.RelayClient.openTunnel(hostPort).thenAccept(session -> {
                 inviteCode = session.code();
                 directAddress = session.host() + ":" + session.port();
-                statusText = "Connected to Campfire Servers ✔";
+                statusText = "Connected to Enzonic Relay ✔";
                 if (CampfireFabric.presence != null) {
                     CampfireFabric.presence.update(
                         com.wayback09.campfire.PresenceState.hosting(
@@ -178,7 +178,7 @@ public final class HostScreen extends Screen {
                 }
                 b.setMessage(Text.literal("✔ Code Copied!"));
             }
-        }).dimensions(btnX, cardY + 98, btnW, btnH).build());
+        }).dimensions(btnX, cardY + 96, btnW, btnH).build());
 
         addDrawableChild(CampfireButton.builder(Text.literal("📋 Copy Direct IP:Port"), b -> {
             if (!directAddress.isBlank()) {
@@ -187,7 +187,7 @@ public final class HostScreen extends Screen {
                 }
                 b.setMessage(Text.literal("✔ Address Copied!"));
             }
-        }).dimensions(btnX, cardY + 120, btnW, btnH).build());
+        }).dimensions(btnX, cardY + 118, btnW, btnH).build());
 
         addDrawableChild(CampfireButton.builder(Text.literal("📨 Invite All Friends"), b -> {
             if (!inviteCode.startsWith("Gen") && CampfireFabric.presence != null) {
@@ -207,10 +207,10 @@ public final class HostScreen extends Screen {
                 }
                 b.setMessage(Text.literal(sent > 0 ? "✔ Sent to " + sent + " Friends!" : "No friends in list"));
             }
-        }).dimensions(btnX, cardY + 142, btnW, btnH).build());
+        }).dimensions(btnX, cardY + 140, btnW, btnH).build());
 
         addDrawableChild(CampfireButton.builder(Text.literal("Done"), b -> close())
-                .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 26, 100, 18).build());
+                .dimensions(cardX + (CARD_W - 100) / 2, cardY + CARD_H - 34, 100, 18).build());
     }
 
     @Override
@@ -221,6 +221,14 @@ public final class HostScreen extends Screen {
             close();
             return true;
         }
+
+        // Clickable Enzonic footer link
+        int enzonicY = cardY + CARD_H - 15;
+        if (mouseY >= enzonicY - 4 && mouseY <= enzonicY + 12 && mouseX >= cardX + 30 && mouseX <= cardX + CARD_W - 30) {
+            LinkHelper.open(this, LinkHelper.ENZONIC_RELAY_URL);
+            return true;
+        }
+
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -256,9 +264,20 @@ public final class HostScreen extends Screen {
             IntegratedServer server = MinecraftClient.getInstance().getServer();
             if (server != null && server.getPlayerManager() != null) {
                 int count = server.getPlayerManager().getCurrentPlayerCount();
-                ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Connected: " + count + " player" + (count == 1 ? "" : "s")), width / 2, cardY + 84, 0xFF22C55E);
+                ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Connected: " + count + " player" + (count == 1 ? "" : "s")), width / 2, cardY + 82, 0xFF22C55E);
             }
         }
+
+        // Enzonic Relay attribution footer
+        int enzonicY = cardY + CARD_H - 13;
+        boolean hoverEnzonic = mouseY >= enzonicY - 4 && mouseY <= enzonicY + 12 && mouseX >= cardX + 30 && mouseX <= cardX + CARD_W - 30;
+        ctx.drawCenteredTextWithShadow(
+            textRenderer,
+            Text.literal("⚡ Relay Tunnels Powered by Enzonic ↗"),
+            width / 2,
+            enzonicY,
+            hoverEnzonic ? 0xFF60A5FA : 0xFF38BDF8
+        );
 
         super.render(ctx, mouseX, mouseY, delta);
     }

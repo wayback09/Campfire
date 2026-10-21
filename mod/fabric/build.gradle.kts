@@ -26,6 +26,7 @@ base {
 }
 
 tasks.processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {
         expand(mapOf("version" to project.version))
@@ -33,6 +34,7 @@ tasks.processResources {
 }
 
 tasks.jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(project(":mod:common").sourceSets["main"].output)
 }
 

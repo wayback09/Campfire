@@ -4,7 +4,6 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.SkinTextures;
 import net.minecraft.text.Text;
 
@@ -16,7 +15,7 @@ import java.util.UUID;
 public final class AboutScreen extends Screen {
     private final Screen parent;
     private static final int CARD_W = 280;
-    private static final int CARD_H = 190;
+    private static final int CARD_H = 228;
 
     public AboutScreen(Screen parent) {
         super(Text.literal("Campfire Profile"));
@@ -28,19 +27,25 @@ public final class AboutScreen extends Screen {
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        int btnW = 110;
+        int btnW = 76;
         int btnH = 20;
-        int gap = 12;
-        int btnY = cardY + CARD_H - 30;
+        int gap = 8;
+        int totalW = btnW * 3 + gap * 2;
+        int startX = cardX + (CARD_W - totalW) / 2;
+        int btnY = cardY + CARD_H - 28;
 
-        addDrawableChild(CampfireButton.builder(Text.literal("Settings  ⚙"), b -> {
+        addDrawableChild(CampfireButton.builder(Text.literal("Settings ⚙"), b -> {
             if (client != null) {
                 client.setScreen(CampfireSettings.screen(this, CampfireFabric.CONFIG));
             }
-        }).dimensions(cardX + (CARD_W - (btnW * 2 + gap)) / 2, btnY, btnW, btnH).build());
+        }).dimensions(startX, btnY, btnW, btnH).build());
+
+        addDrawableChild(CampfireButton.builder(Text.literal("⚡ Enzonic"), b -> {
+            LinkHelper.open(this, LinkHelper.ENZONIC_RELAY_URL);
+        }).dimensions(startX + btnW + gap, btnY, btnW, btnH).build());
 
         addDrawableChild(CampfireButton.builder(Text.literal("Done"), b -> close())
-            .dimensions(cardX + (CARD_W - (btnW * 2 + gap)) / 2 + btnW + gap, btnY, btnW, btnH).build());
+            .dimensions(startX + (btnW + gap) * 2, btnY, btnW, btnH).build());
 
         addDrawableChild(
             CampfireButton.builder(Text.literal("✕"), b -> close())
@@ -56,6 +61,16 @@ public final class AboutScreen extends Screen {
 
         if (mouseX < cardX || mouseX > cardX + CARD_W || mouseY < cardY || mouseY > cardY + CARD_H) {
             close();
+            return true;
+        }
+
+        // Clickable Enzonic Sponsor card
+        int sponsorX = cardX + 16;
+        int sponsorY = cardY + 126;
+        int sponsorW = CARD_W - 32;
+        int sponsorH = 36;
+        if (mouseX >= sponsorX && mouseX <= sponsorX + sponsorW && mouseY >= sponsorY && mouseY <= sponsorY + sponsorH) {
+            LinkHelper.open(this, LinkHelper.ENZONIC_RELAY_URL);
             return true;
         }
 
@@ -76,7 +91,7 @@ public final class AboutScreen extends Screen {
         context.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
         drawBorder(context, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire"), width / 2, cardY + 14, 0xFFFF9900);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("🔥 Campfire"), width / 2, cardY + 12, 0xFFFF9900);
 
         String modVer = net.fabricmc.loader.api.FabricLoader.getInstance()
             .getModContainer("campfire")
@@ -87,19 +102,20 @@ public final class AboutScreen extends Screen {
             .map(c -> c.getMetadata().getVersion().getFriendlyString())
             .orElse("1.21.x");
 
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("v" + modVer + " • Fabric (" + mcVer + ")"), width / 2, cardY + 27, 0xFF94A3B8);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("v" + modVer + " • Fabric (" + mcVer + ")"), width / 2, cardY + 24, 0xFF94A3B8);
 
+        // Player profile card
         int userRowX = cardX + 16;
-        int userRowY = cardY + 44;
+        int userRowY = cardY + 38;
         int userRowW = CARD_W - 32;
-        int userRowH = 80;
+        int userRowH = 74;
 
         context.fill(userRowX, userRowY, userRowX + userRowW, userRowY + userRowH, 0xFF141519);
         drawBorder(context, userRowX, userRowY, userRowW, userRowH, 0xFF2C2E38);
 
-        int faceSize = 32;
+        int faceSize = 30;
         int faceX = userRowX + (userRowW - faceSize) / 2;
-        int faceY = userRowY + 8;
+        int faceY = userRowY + 6;
 
         boolean drawnFace = false;
         try {
@@ -121,13 +137,26 @@ public final class AboutScreen extends Screen {
 
         if (!drawnFace) {
             context.fill(faceX, faceY, faceX + faceSize, faceY + faceSize, 0xFF2A2D3A);
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("👤"), faceX + faceSize / 2, faceY + 10, 0xFFFFFFFF);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal("👤"), faceX + faceSize / 2, faceY + 8, 0xFFFFFFFF);
         }
 
         String username = client != null && client.getSession() != null ? client.getSession().getUsername() : "Player";
         int textCx = userRowX + userRowW / 2;
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(username), textCx, faceY + faceSize + 4, 0xFFFFFFFF);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("● Online"), textCx, faceY + faceSize + 16, 0xFF22C55E);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("● Online"), textCx, faceY + faceSize + 15, 0xFF22C55E);
+
+        // Enzonic Infrastructure Partner card
+        int sponsorX = cardX + 16;
+        int sponsorY = cardY + 120;
+        int sponsorW = CARD_W - 32;
+        int sponsorH = 38;
+
+        boolean hoverSponsor = mouseX >= sponsorX && mouseX <= sponsorX + sponsorW && mouseY >= sponsorY && mouseY <= sponsorY + sponsorH;
+        context.fill(sponsorX, sponsorY, sponsorX + sponsorW, sponsorY + sponsorH, hoverSponsor ? 0xFF1E2129 : 0xFF141519);
+        drawBorder(context, sponsorX, sponsorY, sponsorW, sponsorH, hoverSponsor ? 0xFF38BDF8 : 0xFF2C2E38);
+
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("⚡ Relay Partner: Enzonic Cloud"), sponsorX + sponsorW / 2, sponsorY + 7, 0xFF38BDF8);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("High-Speed Tunnels • relay.enzonic.com ↗"), sponsorX + sponsorW / 2, sponsorY + 20, 0xFF94A3B8);
 
         super.render(context, mouseX, mouseY, delta);
     }

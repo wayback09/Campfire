@@ -53,7 +53,7 @@ public final class JoinScreen extends Screen {
 
         if (InviteCode.isRelayCode(input)) {
             String code = InviteCode.extractRelayCode(input);
-            errorText = "Connecting via Campfire Relay...";
+            errorText = "Connecting via Enzonic Relay...";
             com.wayback09.campfire.RelayClient.startGuestForwarder(code).thenAccept(target -> {
                 client.execute(() -> {
                     ServerAddress address = new ServerAddress(target.getHostString(), target.getPort());
@@ -93,6 +93,8 @@ public final class JoinScreen extends Screen {
         if (!errorText.isEmpty()) {
             ctx.drawCenteredTextWithShadow(textRenderer, errorText, width / 2, height / 2 - 35, 0xFFFF5555);
         }
+
+        ctx.drawCenteredTextWithShadow(textRenderer, "⚡ Routing via Enzonic Relay Network", width / 2, height / 2 + 75, 0xFF38BDF8);
     }
 
     @Override

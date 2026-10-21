@@ -125,11 +125,11 @@ public final class HostScreen extends Screen {
         // Connect to Cloud Relay first, fallback to UPnP if unreachable
         if (!upnpResolved) {
             upnpResolved = true;
-            statusText = "World is live! Connecting to Campfire Servers...";
+            statusText = "Connecting to Enzonic Relay...";
             com.wayback09.campfire.RelayClient.openTunnel(hostPort).thenAccept(session -> {
                 inviteCode = session.code();
                 directAddress = session.host() + ":" + session.port();
-                statusText = "Connected to Campfire Servers ✔";
+                statusText = "Connected to Enzonic Relay ✔";
                 if (CampfireNeoForge.presence != null) {
                     CampfireNeoForge.presence.update(
                         com.wayback09.campfire.PresenceState.hosting(
@@ -186,6 +186,8 @@ public final class HostScreen extends Screen {
             guiGraphics.drawCenteredString(this.font, "Share this code with your friends so they can join instantly:", this.width / 2, this.height / 2 - 25, 0xFFAAAAAA);
             guiGraphics.drawCenteredString(this.font, inviteCode, this.width / 2, this.height / 2 - 10, CampfireTheme.ACCENT);
         }
+
+        guiGraphics.drawCenteredString(this.font, "⚡ Relay Tunnels Powered by Enzonic (relay.enzonic.com)", this.width / 2, this.height - 18, 0xFF38BDF8);
     }
 
     @Override

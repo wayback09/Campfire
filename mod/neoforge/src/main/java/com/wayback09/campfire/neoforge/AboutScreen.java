@@ -1,7 +1,6 @@
 package com.wayback09.campfire.neoforge;
 
 import com.mojang.authlib.GameProfile;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
@@ -17,7 +16,7 @@ import java.util.UUID;
 public final class AboutScreen extends Screen {
     private final Screen parent;
     private static final int CARD_W = 280;
-    private static final int CARD_H = 190;
+    private static final int CARD_H = 228;
 
     public AboutScreen(Screen parent) {
         super(Component.literal("Campfire Profile"));
@@ -29,22 +28,26 @@ public final class AboutScreen extends Screen {
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // Bottom action buttons inside card
-        int btnW = 110;
+        int btnW = 76;
         int btnH = 20;
-        int gap = 12;
-        int btnY = cardY + CARD_H - 30;
+        int gap = 8;
+        int totalW = btnW * 3 + gap * 2;
+        int startX = cardX + (CARD_W - totalW) / 2;
+        int btnY = cardY + CARD_H - 28;
 
-        addRenderableWidget(Button.builder(Component.literal("Settings  ⚙"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Settings ⚙"), b -> {
             if (minecraft != null) {
                 minecraft.setScreen(CampfireSettings.screen(this, CampfireNeoForge.CONFIG));
             }
-        }).bounds(cardX + (CARD_W - (btnW * 2 + gap)) / 2, btnY, btnW, btnH).build());
+        }).bounds(startX, btnY, btnW, btnH).build());
+
+        addRenderableWidget(Button.builder(Component.literal("⚡ Enzonic"), b -> {
+            LinkHelper.open(this, LinkHelper.ENZONIC_RELAY_URL);
+        }).bounds(startX + btnW + gap, btnY, btnW, btnH).build());
 
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-            .bounds(cardX + (CARD_W - (btnW * 2 + gap)) / 2 + btnW + gap, btnY, btnW, btnH).build());
+            .bounds(startX + (btnW + gap) * 2, btnY, btnW, btnH).build());
 
-        // Close '✕' button in top-right of dialog card
         addRenderableWidget(
             Button.builder(Component.literal("✕"), b -> onClose())
                 .bounds(cardX + CARD_W - 22, cardY + 8, 16, 16)
@@ -62,48 +65,54 @@ public final class AboutScreen extends Screen {
             return true;
         }
 
+        // Clickable Enzonic Sponsor card
+        int sponsorX = cardX + 16;
+        int sponsorY = cardY + 120;
+        int sponsorW = CARD_W - 32;
+        int sponsorH = 38;
+        if (mouseX >= sponsorX && mouseX <= sponsorX + sponsorW && mouseY >= sponsorY && mouseY <= sponsorY + sponsorH) {
+            LinkHelper.open(this, LinkHelper.ENZONIC_RELAY_URL);
+            return true;
+        }
+
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        // 1. Render parent screen underneath
         if (parent != null) {
             parent.render(graphics, -1, -1, delta);
         }
 
-        // 2. Dim background
         graphics.fill(0, 0, width, height, 0x80000000);
 
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
-        // 3. Card container & border
         graphics.fill(cardX, cardY, cardX + CARD_W, cardY + CARD_H, 0xFF18181D);
         drawBorder(graphics, cardX, cardY, CARD_W, CARD_H, 0xFF2F313D);
 
-        // 4. Header title: 🔥 Campfire
-        GuiCompat.drawCenteredString(graphics, font, "🔥 Campfire", width / 2, cardY + 14, 0xFFFF9900);
+        GuiCompat.drawCenteredString(graphics, font, "🔥 Campfire", width / 2, cardY + 12, 0xFFFF9900);
 
-        String mcVer = "1.21.x";
-        try {
-            mcVer = net.neoforged.fml.loading.FMLLoader.versionInfo().mcVersion();
-        } catch (Throwable ignored) {}
+        String modVer = net.neoforged.fml.loading.FMLLoader.getLoadingModList()
+            .getModFileById("campfire")
+            .versionString();
+        if (modVer == null || modVer.isBlank()) modVer = "0.1.0";
 
-        GuiCompat.drawCenteredString(graphics, font, "v0.1.0 • NeoForge (" + mcVer + ")", width / 2, cardY + 27, 0xFF94A3B8);
+        GuiCompat.drawCenteredString(graphics, font, "v" + modVer + " • NeoForge (1.21.x)", width / 2, cardY + 24, 0xFF94A3B8);
 
-        // 5. User Profile Card — 32px centred head, username & Online badge centred below
+        // Player profile row
         int userRowX = cardX + 16;
-        int userRowY = cardY + 44;
+        int userRowY = cardY + 38;
         int userRowW = CARD_W - 32;
-        int userRowH = 80;
+        int userRowH = 74;
 
         graphics.fill(userRowX, userRowY, userRowX + userRowW, userRowY + userRowH, 0xFF141519);
         drawBorder(graphics, userRowX, userRowY, userRowW, userRowH, 0xFF2C2E38);
 
-        int faceSize = 32;
+        int faceSize = 30;
         int faceX = userRowX + (userRowW - faceSize) / 2;
-        int faceY = userRowY + 8;
+        int faceY = userRowY + 6;
 
         boolean drawnFace = false;
         try {
@@ -121,16 +130,27 @@ public final class AboutScreen extends Screen {
 
         if (!drawnFace) {
             graphics.fill(faceX, faceY, faceX + faceSize, faceY + faceSize, 0xFF2A2D3A);
-            GuiCompat.drawCenteredString(graphics, font, "👤", faceX + faceSize / 2, faceY + 10, 0xFFFFFFFF);
+            GuiCompat.drawCenteredString(graphics, font, "👤", faceX + faceSize / 2, faceY + 8, 0xFFFFFFFF);
         }
 
-        // Username & Online status centred below head
         String username = minecraft != null && minecraft.getUser() != null ? minecraft.getUser().getName() : "Player";
         int textCx = userRowX + userRowW / 2;
         GuiCompat.drawCenteredString(graphics, font, username, textCx, faceY + faceSize + 4, 0xFFFFFFFF);
-        GuiCompat.drawCenteredString(graphics, font, "● Online", textCx, faceY + faceSize + 16, 0xFF22C55E);
+        GuiCompat.drawCenteredString(graphics, font, "● Online", textCx, faceY + faceSize + 15, 0xFF22C55E);
 
-        // Render buttons & widgets
+        // Enzonic Infrastructure Partner card
+        int sponsorX = cardX + 16;
+        int sponsorY = cardY + 120;
+        int sponsorW = CARD_W - 32;
+        int sponsorH = 38;
+
+        boolean hoverSponsor = mouseX >= sponsorX && mouseX <= sponsorX + sponsorW && mouseY >= sponsorY && mouseY <= sponsorY + sponsorH;
+        graphics.fill(sponsorX, sponsorY, sponsorX + sponsorW, sponsorY + sponsorH, hoverSponsor ? 0xFF1E2129 : 0xFF141519);
+        drawBorder(graphics, sponsorX, sponsorY, sponsorW, sponsorH, hoverSponsor ? 0xFF38BDF8 : 0xFF2C2E38);
+
+        GuiCompat.drawCenteredString(graphics, font, "⚡ Relay Partner: Enzonic Cloud", sponsorX + sponsorW / 2, sponsorY + 7, 0xFF38BDF8);
+        GuiCompat.drawCenteredString(graphics, font, "High-Speed Tunnels • relay.enzonic.com ↗", sponsorX + sponsorW / 2, sponsorY + 20, 0xFF94A3B8);
+
         super.render(graphics, mouseX, mouseY, delta);
     }
 
