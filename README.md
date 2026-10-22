@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://enzonic.com" target="_blank" rel="noopener noreferrer">
+  <a href="https://enzonic.com/r/CQ3WBGRL" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/Powered%20by-Enzonic-b2ff00?style=for-the-badge&logoColor=110e0a&labelColor=1a1512" alt="Powered by Enzonic" />
   </a>
 </p>
@@ -47,8 +47,8 @@ The compiled mod JAR is placed in `mod/fabric/build/libs/` as:
 
 ## Infrastructure & Sponsorship
 
-Campfire's relay network and hosting infrastructure is proudly **Powered by [Enzonic](https://enzonic.com)**.  
-Explore [Enzonic Cloud](https://enzonic.com) for high-performance Minecraft servers, free hosting, and reliable game infrastructure.
+Campfire's relay network and hosting infrastructure is proudly **Powered by [Enzonic](https://enzonic.com/r/CQ3WBGRL)**.  
+Explore [Enzonic Cloud](https://enzonic.com/r/CQ3WBGRL) for high-performance Minecraft servers, free hosting, and reliable game infrastructure.
 
 ---
 
