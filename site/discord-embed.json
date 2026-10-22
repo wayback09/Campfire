@@ -5,7 +5,7 @@
     "components": [
       {
         "type": 10,
-        "content": "## 🔥 Campfire — Free LAN Hosting for Minecraft\nOpen your singleplayer Minecraft world to friends instantly over the internet without port forwarding or rented servers."
+        "content": "##Campfire Free LAN Hosting for Minecraft\nOpen your singleplayer Minecraft world to friends instantly over the internet without port forwarding or rented servers."
       },
       {
         "type": 14,
@@ -14,7 +14,7 @@
       },
       {
         "type": 10,
-        "content": "✨ **Highlights**\n• **Direct P2P & UPnP** with automatic relay fallback\n• **Instant Invite Codes** (`CAMP-XXXXX-XXXXX`)\n• **Friends & Live Presence HUD**\n• ⚡ **Infrastructure Powered by Enzonic**"
+        "content": "**Highlights**\n• **Direct P2P & UPnP** with automatic relay fallback\n• **Instant Invite Codes** (`CAMP-XXXXX-XXXXX`)\n• **Friends & Live Presence HUD**\n• ⚡ **Infrastructure Powered by Enzonic**"
       },
       {
         "type": 1,
