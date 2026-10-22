@@ -142,14 +142,21 @@ code {
   top: 0;
   z-index: 50;
   height: 83px;
-  background: var(--color-bg-canvas);
-  border-bottom: 1px solid var(--color-border-strong);
+  background: transparent;
+  border-bottom: none;
   display: flex;
   align-items: center;
-  transition: border-color var(--duration-base) var(--ease-custom-1), background var(--duration-base) var(--ease-custom-1);
+  transition: background var(--duration-base) var(--ease-custom-1), backdrop-filter var(--duration-base) var(--ease-custom-1);
 }
 .site-header.scrolled {
-  border-bottom-color: var(--color-border);
+  background: rgba(26, 21, 18, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: none;
+}
+[data-theme="light"] .site-header.scrolled {
+  background: rgba(255, 243, 230, 0.85);
+  border-bottom: none;
 }
 
 .nav-container {
