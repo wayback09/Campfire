@@ -1,0 +1,44 @@
+{
+  "component": {
+    "type": 17,
+    "accent_color": 16742953,
+    "components": [
+      {
+        "type": 10,
+        "content": "## 🔥 Campfire — Free LAN Hosting for Minecraft\nOpen your singleplayer Minecraft world to friends instantly over the internet without port forwarding or rented servers."
+      },
+      {
+        "type": 14,
+        "divider": true,
+        "spacing": 1
+      },
+      {
+        "type": 10,
+        "content": "✨ **Highlights**\n• **Direct P2P & UPnP** with automatic relay fallback\n• **Instant Invite Codes** (`CAMP-XXXXX-XXXXX`)\n• **Friends & Live Presence HUD**\n• ⚡ **Infrastructure Powered by Enzonic**"
+      },
+      {
+        "type": 1,
+        "components": [
+          {
+            "type": 2,
+            "style": 5,
+            "label": "Visit Website",
+            "url": "https://wayback09.github.io/Campfire/"
+          },
+          {
+            "type": 2,
+            "style": 5,
+            "label": "Download Mod",
+            "url": "https://github.com/wayback09/Campfire/releases"
+          },
+          {
+            "type": 2,
+            "style": 5,
+            "label": "Powered by Enzonic",
+            "url": "https://enzonic.com/r/CQ3WBGRL"
+          }
+        ]
+      }
+    ]
+  }
+}
