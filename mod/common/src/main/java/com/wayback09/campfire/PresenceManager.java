@@ -10,16 +10,24 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Manages live player presence and one-click friend invites.
- * Connects to Cloudflare Worker (or local SocialServer) with offline disk fallbacks.
+ * Connects to a Cloudflare Worker (or the local {@code SocialServer}) with
+ * offline disk fallbacks.
  *
- * Configurable via System.getProperty("campfire.social_url", "http://127.0.0.1:8090").
+ * <p>The backend URL is configurable via the {@code campfire.social_url}
+ * system property or {@code campfire.properties} in the Minecraft game
+ * directory, e.g.:
+ * <pre>
+ *   campfire.social_url=https://campfire-social.example.workers.dev
+ * </pre>
  */
 public final class PresenceManager {
     public static final String DEFAULT_URL = "https://campfire-social.wayback145b.workers.dev";
+    public static final String PROP_SOCIAL_URL = "campfire.social_url";
 
     private final Path presencePath;
     private final Path pendingInvitePath;
@@ -27,10 +35,14 @@ public final class PresenceManager {
     private PresenceState current;
 
     public PresenceManager(Path runDir) {
+        this(runDir, CampfireProperties.load(runDir));
+    }
+
+    public PresenceManager(Path runDir, CampfireProperties props) {
         Path campfire = runDir.resolve("campfire");
         this.presencePath = campfire.resolve("presence.json");
         this.pendingInvitePath = campfire.resolve("pending_invite.json");
-        this.apiUrl = System.getProperty("campfire.social_url", DEFAULT_URL).replaceAll("/+$", "");
+        this.apiUrl = props.get(PROP_SOCIAL_URL, DEFAULT_URL).replaceAll("/+$", "");
     }
 
     public String getApiUrl() {
@@ -69,10 +81,11 @@ public final class PresenceManager {
     }
 
     /**
-     * Polls for pending in-game invites from friends (queued on Cloudflare or local file).
+     * Polls for pending in-game invites from friends (queued on the backend or
+     * written to the local queue file).
      */
     public PendingInvite pollPendingInvite(String username) {
-        // 1. Check Cloudflare / SocialServer first
+        // 1. Check backend first
         if (username != null && !username.isBlank()) {
             try {
                 HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl + "/invites/poll?username=" + username).toURL().openConnection();
@@ -80,10 +93,14 @@ public final class PresenceManager {
                 conn.setReadTimeout(2500);
                 if (conn.getResponseCode() == 200) {
                     String json = readStream(conn.getInputStream());
-                    if (json.contains("\"invite\":{") || json.contains("\"invite\": {")) {
-                        String from = extract(json, "from");
-                        String code = extract(json, "code");
-                        String world = extract(json, "world");
+                    Map<String, Object> root = CampfireJson.parseObjectOrEmpty(json);
+                    Object inviteObj = root.get("invite");
+                    if (inviteObj instanceof Map<?, ?> invite) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> inviteMap = (Map<String, Object>) invite;
+                        String from = CampfireJson.getString(inviteMap, "from", "");
+                        String code = CampfireJson.getString(inviteMap, "code", "");
+                        String world = CampfireJson.getString(inviteMap, "world", "");
                         if (!from.isBlank() && !code.isBlank()) {
                             return new PendingInvite(from, code, world);
                         }
@@ -98,9 +115,10 @@ public final class PresenceManager {
             try {
                 String json = Files.readString(pendingInvitePath, StandardCharsets.UTF_8);
                 Files.deleteIfExists(pendingInvitePath);
-                String from = extract(json, "from");
-                String code = extract(json, "code");
-                String world = extract(json, "world");
+                Map<String, Object> obj = CampfireJson.parseObjectOrEmpty(json);
+                String from = CampfireJson.getString(obj, "from", "");
+                String code = CampfireJson.getString(obj, "code", "");
+                String world = CampfireJson.getString(obj, "world", "");
                 if (!from.isBlank() && !code.isBlank()) {
                     return new PendingInvite(from, code, world);
                 }
@@ -116,11 +134,11 @@ public final class PresenceManager {
     public void sendNetworkInvite(String fromUsername, String toUsername, String inviteCode, String worldName) {
         CompletableFuture.runAsync(() -> {
             try {
-                String payload = "{\n"
-                    + "  \"from\": \"" + escape(fromUsername) + "\",\n"
-                    + "  \"to\": \"" + escape(toUsername) + "\",\n"
-                    + "  \"code\": \"" + escape(inviteCode) + "\",\n"
-                    + "  \"world\": \"" + escape(worldName != null ? worldName : "World") + "\"\n"
+                String payload = "{"
+                    + "\"from\":" + CampfireJson.quote(fromUsername) + ","
+                    + "\"to\":" + CampfireJson.quote(toUsername) + ","
+                    + "\"code\":" + CampfireJson.quote(inviteCode) + ","
+                    + "\"world\":" + CampfireJson.quote(worldName != null ? worldName : "World")
                     + "}";
 
                 HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl + "/invites/send").toURL().openConnection();
@@ -145,8 +163,8 @@ public final class PresenceManager {
         try {
             StringBuilder sb = new StringBuilder("{\"usernames\":[");
             for (int i = 0; i < friendUsernames.size(); i++) {
-                sb.append("\"").append(escape(friendUsernames.get(i))).append("\"");
-                if (i < friendUsernames.size() - 1) sb.append(",");
+                if (i > 0) sb.append(",");
+                sb.append(CampfireJson.quote(friendUsernames.get(i)));
             }
             sb.append("]}");
 
@@ -176,17 +194,40 @@ public final class PresenceManager {
 
     private static List<FriendPresence> parsePresenceList(String json) {
         List<FriendPresence> list = new ArrayList<>();
-        String[] blocks = json.split("\\{");
-        for (String block : blocks) {
-            if (!block.contains("username") || !block.contains("status")) continue;
-            String user = extract(block, "username");
-            String status = extract(block, "status");
-            String world = extract(block, "worldName");
-            String code = extract(block, "inviteCode");
-            long updated = extractLong(block, "updatedAt");
-            if (!user.isBlank()) {
-                list.add(new FriendPresence(user, status.isBlank() ? "OFFLINE" : status, world, code, updated));
+
+        Object parsed = CampfireJson.parseOrNull(json);
+        List<Object> entries = null;
+
+        if (parsed instanceof Map<?, ?> root) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rootMap = (Map<String, Object>) root;
+            Object results = rootMap.get("results");
+            if (results instanceof List<?> l) {
+                entries = new ArrayList<>(l);
+            } else {
+                // Single presence object response.
+                entries = List.of(rootMap);
             }
+        } else if (parsed instanceof List<?> l) {
+            entries = new ArrayList<>(l);
+        }
+
+        if (entries == null) return list;
+
+        for (Object entry : entries) {
+            if (!(entry instanceof Map<?, ?> raw)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> obj = (Map<String, Object>) raw;
+
+            String user = CampfireJson.getString(obj, "username", "");
+            if (user.isBlank()) continue;
+
+            String status = CampfireJson.getString(obj, "status", "OFFLINE");
+            String world = CampfireJson.getString(obj, "worldName", "");
+            String code = CampfireJson.getString(obj, "inviteCode", "");
+            long updated = CampfireJson.getLong(obj, "updatedAt", 0);
+
+            list.add(new FriendPresence(user, status.isBlank() ? "OFFLINE" : status, world, code, updated));
         }
         return list;
     }
@@ -198,40 +239,13 @@ public final class PresenceManager {
     }
 
     private static String toJson(PresenceState s) {
-        return "{\n"
-            + "  \"username\": \"" + escape(s.username()) + "\",\n"
-            + "  \"status\": \"" + escape(s.status()) + "\",\n"
-            + "  \"worldName\": \"" + escape(s.worldName() != null ? s.worldName() : "") + "\",\n"
-            + "  \"inviteCode\": \"" + escape(s.inviteCode() != null ? s.inviteCode() : "") + "\",\n"
-            + "  \"updatedAt\": " + s.updatedAt() + "\n"
-            + "}\n";
-    }
-
-    private static String extract(String json, String key) {
-        String pattern = "\"" + key + "\": \"";
-        int idx = json.indexOf(pattern);
-        if (idx == -1) {
-            pattern = "\"" + key + "\":\"";
-            idx = json.indexOf(pattern);
-            if (idx == -1) return "";
-        }
-        int start = idx + pattern.length();
-        int end = json.indexOf("\"", start);
-        return end == -1 ? "" : json.substring(start, end).replace("\\\"", "\"");
-    }
-
-    private static long extractLong(String json, String key) {
-        String p = "\"" + key + "\": ";
-        int idx = json.indexOf(p);
-        if (idx == -1) { p = "\"" + key + "\":"; idx = json.indexOf(p); if (idx == -1) return 0; }
-        int s = idx + p.length();
-        int e = s;
-        while (e < json.length() && Character.isDigit(json.charAt(e))) e++;
-        try { return Long.parseLong(json.substring(s, e)); } catch (Exception ex) { return 0; }
-    }
-
-    private static String escape(String s) {
-        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
+        return "{"
+            + "\"username\":" + CampfireJson.quote(s.username()) + ","
+            + "\"status\":" + CampfireJson.quote(s.status()) + ","
+            + "\"worldName\":" + CampfireJson.quote(s.worldName() != null ? s.worldName() : "") + ","
+            + "\"inviteCode\":" + CampfireJson.quote(s.inviteCode() != null ? s.inviteCode() : "") + ","
+            + "\"updatedAt\":" + s.updatedAt()
+            + "}";
     }
 
     public record PendingInvite(String fromUsername, String inviteCode, String worldName) {}

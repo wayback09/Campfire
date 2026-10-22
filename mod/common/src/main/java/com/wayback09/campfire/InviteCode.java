@@ -53,51 +53,54 @@ public final class InviteCode {
      */
     public static InetSocketAddress decode(String input) {
         if (input == null || input.isBlank()) return null;
-        String clean = input.trim();
+        String trimmed = input.trim();
 
-        if (clean.toUpperCase().startsWith(PREFIX)) {
-            clean = clean.substring(PREFIX.length());
-        }
-        clean = clean.replace("-", "").toUpperCase();
+        boolean hadPrefix = trimmed.toUpperCase(java.util.Locale.ROOT).startsWith(PREFIX);
+        String clean = hadPrefix ? trimmed.substring(PREFIX.length()) : trimmed;
+        clean = clean.replace("-", "").toUpperCase(java.util.Locale.ROOT);
 
         if (clean.length() == 10) {
-            try {
-                long value = 0;
-                for (int i = 0; i < 10; i++) {
-                    char c = clean.charAt(i);
-                    int index = ALPHABET.indexOf(c);
-                    if (index < 0) return null;
-                    value = (value << 5) | index;
-                }
-                int port = (int) (value & 0xFFFFL);
-                value >>>= 16;
-                int b4 = (int) (value & 0xFFL);
-                value >>>= 8;
-                int b3 = (int) (value & 0xFFL);
-                value >>>= 8;
-                int b2 = (int) (value & 0xFFL);
-                value >>>= 8;
-                int b1 = (int) (value & 0xFFL);
+            long value = 0;
+            for (int i = 0; i < 10; i++) {
+                char c = clean.charAt(i);
+                int index = ALPHABET.indexOf(c);
+                if (index < 0) return null;
+                value = (value << 5) | index;
+            }
+            int port = (int) (value & 0xFFFFL);
+            value >>>= 16;
+            int b4 = (int) (value & 0xFFL);
+            value >>>= 8;
+            int b3 = (int) (value & 0xFFL);
+            value >>>= 8;
+            int b2 = (int) (value & 0xFFL);
+            value >>>= 8;
+            int b1 = (int) (value & 0xFFL);
 
-                String host = b1 + "." + b2 + "." + b3 + "." + b4;
-                return new InetSocketAddress(host, port);
+            String host = b1 + "." + b2 + "." + b3 + "." + b4;
+            return new InetSocketAddress(host, port);
+        }
+
+        // A "CAMP-" prefix means the input was meant to be an invite code. If it
+        // did not decode, fail instead of silently treating the characters as a
+        // hostname (which used to turn typos into bogus DNS lookups).
+        if (hadPrefix) {
+            return null;
+        }
+
+        // Direct host:port fallback. Keep the original casing of the host.
+        if (trimmed.contains(":")) {
+            String[] parts = trimmed.split(":", 2);
+            try {
+                int port = Integer.parseInt(parts[1].trim());
+                return new InetSocketAddress(parts[0], port);
             } catch (Exception ignored) {
+                return null;
             }
         }
 
-        // Direct host:port fallback
-        if (clean.contains(":")) {
-            String[] parts = clean.split(":", 2);
-            try {
-                int port = Integer.parseInt(parts[1]);
-                return new InetSocketAddress(parts[0], port);
-            } catch (Exception ignored) {}
-        } else {
-            // Default Minecraft port 25565
-            return new InetSocketAddress(clean, 25565);
-        }
-
-        return null;
+        // Default Minecraft port 25565
+        return new InetSocketAddress(trimmed, 25565);
     }
 
     /**

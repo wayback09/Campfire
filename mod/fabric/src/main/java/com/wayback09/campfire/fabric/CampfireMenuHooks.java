@@ -62,8 +62,8 @@ public final class CampfireMenuHooks {
                 });
 
                 // Prevent Delete key from removing a featured server
-                ScreenKeyboardEvents.allowKeyPress(screen).register((scr, key, scancode, modifiers) -> {
-                    if (key == 261 && scr instanceof MultiplayerScreen currentMs) { // 261 = GLFW_KEY_DELETE
+                ScreenKeyboardEvents.allowKeyPress(screen).register((scr, input) -> {
+                    if (input.key() == 261 && scr instanceof MultiplayerScreen currentMs) { // 261 = GLFW_KEY_DELETE
                         return !isFeaturedSelected(currentMs);
                     }
                     return true;

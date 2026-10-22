@@ -62,33 +62,16 @@ public record FriendPresence(
     }
 
     private static FriendPresence parse(String json, String fallbackUsername) {
-        String username = extractStr(json, "username");
+        java.util.Map<String, Object> obj = CampfireJson.parseObjectOrEmpty(json);
+
+        String username = CampfireJson.getString(obj, "username", "");
         if (username.isBlank()) username = fallbackUsername;
-        String status = extractStr(json, "status");
+        String status = CampfireJson.getString(obj, "status", "");
         if (status.isBlank()) status = "MENU";
-        String worldName = extractStr(json, "worldName");
-        String inviteCode = extractStr(json, "inviteCode");
-        long updatedAt = extractLong(json, "updatedAt");
+        String worldName = CampfireJson.getString(obj, "worldName", "");
+        String inviteCode = CampfireJson.getString(obj, "inviteCode", "");
+        long updatedAt = CampfireJson.getLong(obj, "updatedAt", 0);
+
         return new FriendPresence(username, status, worldName, inviteCode, updatedAt);
-    }
-
-    private static String extractStr(String json, String key) {
-        String p1 = "\"" + key + "\": \"";
-        String p2 = "\"" + key + "\":\"";
-        int idx = json.indexOf(p1);
-        if (idx == -1) { idx = json.indexOf(p2); if (idx == -1) return ""; p1 = p2; }
-        int s = idx + p1.length();
-        int e = json.indexOf("\"", s);
-        return e == -1 ? "" : json.substring(s, e);
-    }
-
-    private static long extractLong(String json, String key) {
-        String p = "\"" + key + "\": ";
-        int idx = json.indexOf(p);
-        if (idx == -1) { p = "\"" + key + "\":"; idx = json.indexOf(p); if (idx == -1) return 0; }
-        int s = idx + p.length();
-        int e = s;
-        while (e < json.length() && Character.isDigit(json.charAt(e))) e++;
-        try { return Long.parseLong(json.substring(s, e)); } catch (Exception ex) { return 0; }
     }
 }

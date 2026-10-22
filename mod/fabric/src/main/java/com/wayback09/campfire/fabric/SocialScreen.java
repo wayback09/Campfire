@@ -1,11 +1,13 @@
 package com.wayback09.campfire.fabric;
 
 import com.mojang.authlib.GameProfile;
+import com.wayback09.campfire.CampfireJson;
 import com.wayback09.campfire.CampfireTheme;
 import com.wayback09.campfire.FriendPresence;
 import com.wayback09.campfire.InviteCode;
 import com.wayback09.campfire.RelayClient;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.screen.Screen;
@@ -14,7 +16,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.util.SkinTextures;
+import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.text.Text;
 
 import java.io.IOException;
@@ -315,36 +317,43 @@ public final class SocialScreen extends Screen {
     }
 
     private static String validateMinecraftUsername(String username) {
+        HttpURLConnection conn = null;
         try {
-            HttpURLConnection conn = (HttpURLConnection) URI.create("https://api.mojang.com/users/profiles/minecraft/" + username).toURL().openConnection();
+            conn = (HttpURLConnection) URI.create(
+                    "https://api.mojang.com/users/profiles/minecraft/" + username).toURL().openConnection();
             conn.setConnectTimeout(3000);
             conn.setReadTimeout(3000);
             if (conn.getResponseCode() == 200) {
-                String json = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                int idx = json.indexOf("\"name\":\"");
-                if (idx != -1) {
-                    int s = idx + 8;
-                    int e = json.indexOf("\"", s);
-                    if (e != -1) return json.substring(s, e);
+                String json;
+                try (java.io.InputStream in = conn.getInputStream()) {
+                    json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
                 }
-                return username;
+                String name = CampfireJson.getString(CampfireJson.parseObjectOrEmpty(json), "name", "");
+                return name.isBlank() ? username : name;
             }
-            conn.disconnect();
+            // 204 / 404 means the account does not exist.
+            return username;
         } catch (Exception ignored) {
             return username;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
-        return null;
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
         if (mouseX < cardX || mouseX > cardX + CARD_W || mouseY < cardY || mouseY > cardY + CARD_H) {
             close();
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override
@@ -475,13 +484,13 @@ public final class SocialScreen extends Screen {
         try {
             if (client != null && client.getSkinProvider() != null) {
                 GameProfile profile = null;
-                if (client.getGameProfile() != null && username.equalsIgnoreCase(client.getGameProfile().getName())) {
+                if (client.getGameProfile() != null && username.equalsIgnoreCase(client.getGameProfile().name())) {
                     profile = client.getGameProfile();
                 } else {
                     UUID uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8));
                     profile = new GameProfile(uuid, username);
                 }
-                SkinTextures skin = SkinHelper.getSkinTextures(client.getSkinProvider(), profile, profile.getId());
+                SkinTextures skin = SkinHelper.getSkinTextures(client.getSkinProvider(), profile, profile.id());
                 if (skin != null) {
                     PlayerSkinDrawer.draw(ctx, skin, x, y, size);
                     drawn = true;

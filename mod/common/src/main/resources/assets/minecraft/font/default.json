@@ -2,7 +2,7 @@
   "providers": [
     {
       "type": "bitmap",
-      "file": "campfire:textures/font/flame.png",
+      "file": "campfire:font/flame.png",
       "ascent": 7,
       "height": 8,
       "chars": [

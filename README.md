@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <b>Free and open-source peer-to-peer world hosting and social mod for Minecraft (Fabric 1.21.x).</b><br/>
+  <b>Free and open-source peer-to-peer world hosting and social mod for Minecraft (Fabric &amp; NeoForge).</b><br/>
   No paid cosmetics • No microtransactions • No VPS or subscription required
 </p>
 
@@ -22,26 +22,92 @@
 ## Features
 
 - **P2P World Hosting**: Open any singleplayer world to friends over the internet or LAN. Automatically forwards ports via UPnP and generates compact invite codes (`CAMP-XXXXX-XXXXX`).
-- **Friends & Live Presence**: Track friends' real-time in-game status (*In Menu, Singleplayer, Hosting, Multiplayer*)one-click join or invite actions.
+- **Friends & Live Presence**: Track friends' real-time in-game status (*In Menu, Singleplayer, Hosting, Multiplayer*) with one-click join or invite actions.
 - **Screenshot HUD Toast & Clipboard Copy**
+
+---
+
+## Supported Versions
+
+| Loader | Minecraft | Mod version | Build output |
+| --- | --- | --- | --- |
+| Fabric | 1.21.11 | `0.1.0+1.21.11` | `mod/fabric/build/libs/Campfire-0.1.0+1.21.11.jar` |
+| NeoForge | 1.21.1 | `0.1.0+1.21.1` | `mod/neoforge/build/libs/Campfire-NeoForge-0.1.0+1.21.1.jar` |
+
+The Fabric jar is compiled against exactly the Minecraft version in
+`gradle.properties` (`minecraft_version` / `yarn_version`), and its
+`fabric.mod.json` declares that version as a dependency. Mixin injections are
+declared as non-required, so a future Minecraft patch that moves a method will
+disable a single cosmetic feature rather than crash the game.
 
 ---
 
 ## Building from Source
 
-Requires **Java 21** (e.g. Eclipse Adoptium Temurin 21).
+The build needs **two JDKs**:
+
+| JDK | Why |
+| --- | --- |
+| **25** | Gradle 9.8.2 / Fabric Loom 1.19 require a JVM 25 runtime. This is the `JAVA_HOME` used to launch Gradle. |
+| **21** | The Java toolchain the mod is *compiled* with (Minecraft 1.21.x targets Java 21 bytecode). |
+
+Gradle discovers the Java 21 toolchain automatically. Set `JAVA_HOME` to your
+JDK 25 install before building:
 
 ```bash
-# Clone the repository
 git clone https://github.com/wayback09/Campfire.git
 cd Campfire
 
-# Build the Fabric mod JAR
-./gradlew :mod:fabric:build
+# Fabric + NeoForge jars, plus the shared-module unit tests
+export JAVA_HOME=/path/to/jdk-25
+./gradlew :mod:common:test :mod:fabric:build :mod:neoforge:build
 ```
 
-The compiled mod JAR is placed in `mod/fabric/build/libs/` as:
-`Campfire-<version>+<mc_version>.jar`
+On Windows PowerShell:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Java\jdk-25.0.2'
+.\gradlew.bat :mod:common:test :mod:fabric:build :mod:neoforge:build
+```
+
+Run only the Fabric jar build with `./gradlew :mod:fabric:build`.
+
+### Relay server tests
+
+```bash
+cd backend/relay-go
+go vet ./...
+go test ./...
+```
+
+---
+
+## Configuration
+
+Relay and social endpoints are configurable instead of hard-coded. Values are
+resolved in this order (first match wins):
+
+1. JVM system property, e.g. `-Dcampfire.relay.host=relay.example.com`
+2. `config/campfire.properties` (or `campfire.properties` in the game directory)
+3. Built-in defaults
+
+```properties
+# campfire.properties (place next to the Minecraft game directory)
+campfire.relay_host=relay.enzonic.com
+campfire.relay_port=25631
+campfire.social_url=https://campfire-social.example.workers.dev
+campfire.featured_servers_url=https://example.com/featured_servers.json
+```
+
+The same keys can be overridden per launch with JVM system properties, e.g.
+`-Dcampfire.relay_host=relay.example.com`.
+
+See [`mod/common/src/main/java/com/wayback09/campfire/CampfireProperties.java`](mod/common/src/main/java/com/wayback09/campfire/CampfireProperties.java)
+for how resolution works, and the `PROP_*` constants in
+[`RelayClient`](mod/common/src/main/java/com/wayback09/campfire/RelayClient.java),
+[`PresenceManager`](mod/common/src/main/java/com/wayback09/campfire/PresenceManager.java) and
+[`FeaturedServerStore`](mod/common/src/main/java/com/wayback09/campfire/FeaturedServerStore.java)
+for the authoritative key list.
 
 ---
 

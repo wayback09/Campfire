@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -27,6 +28,9 @@ public final class FeaturedServerStore {
     public static final String DEFAULT_REMOTE_URL =
         "https://raw.githubusercontent.com/wayback09/campfire/main/campfire/featured_servers.json";
 
+    /** System property / properties-file key used to override the remote list URL. */
+    public static final String PROP_REMOTE_URL = "campfire.featured_servers_url";
+
     private static final List<FeaturedServer> BUILTIN_DEFAULTS = List.of(
         new FeaturedServer(
             "islanders_mc",
@@ -42,8 +46,12 @@ public final class FeaturedServerStore {
     private final List<FeaturedServer> servers = new ArrayList<>();
 
     public FeaturedServerStore(Path runDir) {
+        this(runDir, CampfireProperties.load(runDir));
+    }
+
+    public FeaturedServerStore(Path runDir, CampfireProperties props) {
         this.cachePath = runDir.resolve("campfire/featured_servers.json");
-        this.remoteUrl = System.getProperty("campfire.featured_servers_url", DEFAULT_REMOTE_URL);
+        this.remoteUrl = props.get(PROP_REMOTE_URL, DEFAULT_REMOTE_URL);
         load();
     }
 
@@ -159,14 +167,23 @@ public final class FeaturedServerStore {
 
     private static void parseList(String json, List<FeaturedServer> target) {
         if (json == null || json.isBlank()) return;
-        String[] blocks = json.split("\\{");
-        for (String block : blocks) {
-            if (!block.contains("name") || !block.contains("ip")) continue;
-            String id   = extractStr(block, "id");
-            String name = extractStr(block, "name");
-            String ip   = extractStr(block, "ip");
-            String tag  = extractStr(block, "tag");
-            String desc = extractStr(block, "description");
+
+        Object parsed = CampfireJson.parseOrNull(json);
+        if (!(parsed instanceof List<?> raw)) {
+            return;
+        }
+
+        for (Object entry : raw) {
+            if (!(entry instanceof Map<?, ?> item)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> obj = (Map<String, Object>) item;
+
+            String id   = CampfireJson.getString(obj, "id", "");
+            String name = CampfireJson.getString(obj, "name", "");
+            String ip   = CampfireJson.getString(obj, "ip", "");
+            String tag  = CampfireJson.getString(obj, "tag", "");
+            String desc = CampfireJson.getString(obj, "description", "");
+
             if (!name.isBlank() && !ip.isBlank()) {
                 target.add(new FeaturedServer(
                     id.isBlank() ? "srv_" + target.size() : id,
@@ -178,31 +195,16 @@ public final class FeaturedServerStore {
         }
     }
 
-    private static String extractStr(String block, String key) {
-        for (String pattern : new String[]{"\"" + key + "\": \"", "\"" + key + "\":\"", "\"" + key + "\":"}) {
-            int idx = block.indexOf(pattern);
-            if (idx == -1) continue;
-            int s = idx + pattern.length();
-            while (s < block.length() && (block.charAt(s) == ' ' || block.charAt(s) == '"')) {
-                if (block.charAt(s) == '"') { s++; break; }
-                s++;
-            }
-            int e = block.indexOf("\"", s);
-            return e == -1 ? "" : block.substring(s, e);
-        }
-        return "";
-    }
-
     private static String exportJson(List<FeaturedServer> list) {
         StringBuilder sb = new StringBuilder("[\n");
         for (int i = 0; i < list.size(); i++) {
             FeaturedServer s = list.get(i);
             sb.append("  {\n");
-            sb.append("    \"id\": \"").append(s.id()).append("\",\n");
-            sb.append("    \"name\": \"").append(s.name()).append("\",\n");
-            sb.append("    \"ip\": \"").append(s.ip()).append("\",\n");
-            sb.append("    \"tag\": \"").append(s.tag()).append("\",\n");
-            sb.append("    \"description\": \"").append(s.description()).append("\"\n");
+            sb.append("    \"id\": ").append(CampfireJson.quote(s.id())).append(",\n");
+            sb.append("    \"name\": ").append(CampfireJson.quote(s.name())).append(",\n");
+            sb.append("    \"ip\": ").append(CampfireJson.quote(s.ip())).append(",\n");
+            sb.append("    \"tag\": ").append(CampfireJson.quote(s.tag())).append(",\n");
+            sb.append("    \"description\": ").append(CampfireJson.quote(s.description())).append("\n");
             sb.append("  }").append(i < list.size() - 1 ? ",\n" : "\n");
         }
         sb.append("]\n");

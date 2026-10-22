@@ -1,10 +1,11 @@
 package com.wayback09.campfire.fabric;
 
 import com.mojang.authlib.GameProfile;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.util.SkinTextures;
+import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.text.Text;
 
 import java.util.UUID;
@@ -55,7 +56,10 @@ public final class AboutScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
 
@@ -74,7 +78,7 @@ public final class AboutScreen extends Screen {
             return true;
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override
@@ -126,7 +130,7 @@ public final class AboutScreen extends Screen {
                     String name = client.getSession().getUsername();
                     profile = new GameProfile(uuid != null ? uuid : UUID.randomUUID(), name);
                 }
-                UUID uuid = profile != null ? profile.getId() : null;
+                UUID uuid = profile != null ? profile.id() : null;
                 SkinTextures skin = SkinHelper.getSkinTextures(client.getSkinProvider(), profile, uuid);
                 if (skin != null) {
                     PlayerSkinDrawer.draw(context, skin, faceX, faceY, faceSize);

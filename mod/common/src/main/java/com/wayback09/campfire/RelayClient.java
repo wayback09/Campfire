@@ -13,21 +13,53 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
- * Campfire High-Performance Go Relay Tunnel Client.
- * Connects to the Campfire Go relay server (sgp-two.enzonic.com:25631)
- * for NAT traversal and world tunneling.
+ * Campfire relay tunnel client.
+ *
+ * <p>Connects to the Campfire Go relay server for NAT traversal and world
+ * tunnelling. The endpoint is configurable so the mod can be pointed at a
+ * self-hosted relay:
+ * <pre>
+ *   -Dcampfire.relay_host=relay.example.com
+ *   -Dcampfire.relay_port=25631
+ * </pre>
+ * or via {@code campfire.properties} in the Minecraft game directory.
  */
 public final class RelayClient {
+    /** Default relay endpoint (Enzonic relay network). */
     public static final String DEFAULT_RELAY_HOST = "168.144.109.206";
     public static final int DEFAULT_RELAY_PORT = 25631;
+
+    public static final String PROP_RELAY_HOST = "campfire.relay_host";
+    public static final String PROP_RELAY_PORT = "campfire.relay_port";
 
     private static final Logger LOGGER = Logger.getLogger("CampfireRelay");
 
     public record RelaySession(String code, String host, int port, AutoCloseable tunnel) {}
 
     private static RelaySession activeSession = null;
+    private static volatile String relayHost = DEFAULT_RELAY_HOST;
+    private static volatile int relayPort = DEFAULT_RELAY_PORT;
 
     private RelayClient() {}
+
+    /**
+     * Applies relay endpoint overrides. Called once during client startup.
+     */
+    public static void configure(CampfireProperties props) {
+        if (props == null) {
+            return;
+        }
+        relayHost = props.get(PROP_RELAY_HOST, DEFAULT_RELAY_HOST);
+        relayPort = props.getInt(PROP_RELAY_PORT, DEFAULT_RELAY_PORT);
+    }
+
+    public static String getRelayHost() {
+        return relayHost;
+    }
+
+    public static int getRelayPort() {
+        return relayPort;
+    }
 
     public static synchronized RelaySession getActiveSession() {
         return activeSession;
@@ -43,17 +75,17 @@ public final class RelayClient {
     }
 
     public static CompletableFuture<RelaySession> openTunnel(int localPort) {
-        return openTunnel(DEFAULT_RELAY_HOST, DEFAULT_RELAY_PORT, localPort);
+        return openTunnel(relayHost, relayPort, localPort);
     }
 
-    public static CompletableFuture<RelaySession> openTunnel(String relayHost, int relayPort, int localPort) {
+    public static CompletableFuture<RelaySession> openTunnel(String host, int port, int localPort) {
         CompletableFuture<RelaySession> future = new CompletableFuture<>();
 
         Thread worker = new Thread(() -> {
             try {
-                LOGGER.info("[CampfireRelay] Connecting to relay at " + relayHost + ":" + relayPort);
+                LOGGER.info("[CampfireRelay] Connecting to relay at " + host + ":" + port);
                 Socket controlSocket = new Socket();
-                controlSocket.connect(new InetSocketAddress(relayHost, relayPort), 5000);
+                controlSocket.connect(new InetSocketAddress(host, port), 5000);
                 controlSocket.setKeepAlive(true);
 
                 OutputStream out = controlSocket.getOutputStream();
@@ -84,7 +116,7 @@ public final class RelayClient {
                     } catch (Exception ignored) {}
                 };
 
-                RelaySession session = new RelaySession(inviteCode, relayHost, relayPort, tunnel);
+                RelaySession session = new RelaySession(inviteCode, host, port, tunnel);
                 synchronized (RelayClient.class) {
                     closeActiveSession();
                     activeSession = session;
@@ -102,7 +134,7 @@ public final class RelayClient {
                             String[] parts = cmd.split("\\s+");
                             if (parts.length >= 2) {
                                 String guestId = parts[1];
-                                spawnGuestPipe(relayHost, relayPort, localPort, guestId);
+                                spawnGuestPipe(host, port, localPort, guestId);
                             }
                         }
                     }
@@ -122,6 +154,14 @@ public final class RelayClient {
                 }
                 LOGGER.info("[CampfireRelay] Host session closed");
 
+                // If the session was torn down without an explicit close, make sure
+                // the stale session reference does not linger.
+                synchronized (RelayClient.class) {
+                    if (activeSession == session) {
+                        activeSession = null;
+                    }
+                }
+
             } catch (Exception e) {
                 LOGGER.severe("[CampfireRelay] Relay connection failed: " + e.getMessage());
                 future.completeExceptionally(e);
@@ -133,11 +173,11 @@ public final class RelayClient {
         return future;
     }
 
-    private static void spawnGuestPipe(String relayHost, int relayPort, int localPort, String guestId) {
+    private static void spawnGuestPipe(String host, int port, int localPort, String guestId) {
         Thread t = new Thread(() -> {
             try {
                 Socket localServer = new Socket("127.0.0.1", localPort);
-                Socket relayPipe = new Socket(relayHost, relayPort);
+                Socket relayPipe = new Socket(host, port);
 
                 relayPipe.getOutputStream().write(("CAMPFIRE_PIPE " + guestId + "\n").getBytes(StandardCharsets.UTF_8));
                 relayPipe.getOutputStream().flush();
@@ -162,6 +202,10 @@ public final class RelayClient {
      * Creates a local loopback forwarder for connecting to a relay-hosted world by code.
      */
     public static CompletableFuture<InetSocketAddress> startGuestForwarder(String rawCode) {
+        return startGuestForwarder(relayHost, relayPort, rawCode);
+    }
+
+    public static CompletableFuture<InetSocketAddress> startGuestForwarder(String host, int port, String rawCode) {
         CompletableFuture<InetSocketAddress> future = new CompletableFuture<>();
 
         Thread t = new Thread(() -> {
@@ -173,7 +217,7 @@ public final class RelayClient {
                 Socket clientSocket = localServer.accept();
                 localServer.close();
 
-                Socket relaySocket = new Socket(DEFAULT_RELAY_HOST, DEFAULT_RELAY_PORT);
+                Socket relaySocket = new Socket(host, port);
                 relaySocket.getOutputStream().write(("CAMPFIRE_JOIN " + rawCode + "\n").getBytes(StandardCharsets.UTF_8));
                 relaySocket.getOutputStream().flush();
 

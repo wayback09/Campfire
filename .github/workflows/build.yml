@@ -1,4 +1,4 @@
-name: Build & Release Campfire
+name: Build
 
 on:
   push:
@@ -19,40 +19,121 @@ on:
       - 'enzonic.svg'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
-    inputs:
-      target_version:
-        description: 'Specific Minecraft target version (e.g. 1.21.8, 1.21.4)'
-        required: false
-        default: '1.21.8'
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build Fabric JAR
+  mod:
+    name: Build mod jars (Fabric + NeoForge)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        java: [ 21 ]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      # The mod is compiled with a Java 21 toolchain (Minecraft 1.21.x target),
+      # but Fabric Loom 1.19 requires a JVM 25 runtime for Gradle itself, so both
+      # JDKs have to be installed. setup-java exports JAVA_HOME_<n>_X64 for each
+      # install, which Gradle's toolchain auto-detection picks up.
+      - name: Set up JDK 21 (compile toolchain)
         uses: actions/setup-java@v4
         with:
           java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up JDK 25 (Gradle / Loom runtime)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
           distribution: 'temurin'
           cache: 'gradle'
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Build Mod with Gradle
-        run: ./gradlew :mod:fabric:build --no-daemon
+      - name: Build Fabric + NeoForge jars and run common tests
+        run: |
+          ./gradlew \
+            :mod:common:test \
+            :mod:fabric:build \
+            :mod:neoforge:build \
+            --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: >-
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
-      - name: Upload Fabric Mod Artifact
+      - name: Upload Fabric jar
         uses: actions/upload-artifact@v4
         with:
-          name: Campfire-Fabric-JAR
-          path: mod/fabric/build/libs/Campfire-*.jar
+          name: Campfire-Fabric
+          path: mod/fabric/build/libs/Campfire-[0-9]*.jar
           if-no-files-found: error
+
+      - name: Upload NeoForge jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Campfire-NeoForge
+          path: mod/neoforge/build/libs/Campfire-NeoForge-[0-9]*.jar
+          if-no-files-found: error
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: mod/*/build/reports/tests/
+          if-no-files-found: ignore
+
+  relay:
+    name: Build & test Go relay
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/relay-go/go.mod
+          cache-dependency-path: backend/relay-go/go.mod
+
+      - name: Vet
+        working-directory: backend/relay-go
+        run: go vet ./...
+
+      - name: Test
+        working-directory: backend/relay-go
+        run: go test -race -count=1 ./...
+
+  release:
+    name: Publish release assets
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ mod, relay ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Fabric jar
+        uses: actions/download-artifact@v4
+        with:
+          name: Campfire-Fabric
+          path: dist
+
+      - name: Download NeoForge jar
+        uses: actions/download-artifact@v4
+        with:
+          name: Campfire-NeoForge
+          path: dist
+
+      - name: List release assets
+        run: ls -l dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.jar
+          generate_release_notes: true

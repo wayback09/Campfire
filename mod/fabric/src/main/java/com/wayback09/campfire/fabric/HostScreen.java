@@ -4,11 +4,13 @@ import com.wayback09.campfire.CampfireTheme;
 import com.wayback09.campfire.InviteCode;
 import com.wayback09.campfire.UpnpHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.text.Text;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.rule.GameRules;
 
 /**
  * World hosting modal screen for Campfire on Fabric.
@@ -111,7 +113,9 @@ public final class HostScreen extends Screen {
             }
             if (opened) {
                 try {
-                    server.setPvpEnabled(pvpEnabled);
+                    // 1.21.9+ moved PVP out of IntegratedServer into the
+                    // "pvp" game rule: GameRules#setValue(rule, value, server).
+                    server.getOverworld().getGameRules().setValue(GameRules.PVP, pvpEnabled, server);
                 } catch (Throwable ignored) {}
                 this.isHosting = true;
                 clearAndInit();
@@ -214,7 +218,10 @@ public final class HostScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+
         int cardX = (width - CARD_W) / 2;
         int cardY = (height - CARD_H) / 2;
         if (mouseX < cardX || mouseX > cardX + CARD_W || mouseY < cardY || mouseY > cardY + CARD_H) {
@@ -229,7 +236,7 @@ public final class HostScreen extends Screen {
             return true;
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override

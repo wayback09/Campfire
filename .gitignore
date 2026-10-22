@@ -19,10 +19,12 @@ run/
 .classpath
 .project
 .settings/
+.agents/
 
 # OS specific files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # In-game runtime data
 /campfire/
@@ -32,6 +34,7 @@ Thumbs.db
 
 # Go build & cache artifacts
 **/.cache/
+**/.gocache/
 *.exe
 *.exe~
 *.dll
@@ -41,3 +44,22 @@ backend/relay-go/server-linux
 backend/relay-go/relay-test*
 backend/relay-go/server*
 server-linux
+
+# Cloudflare Wrangler local state (contains minified bundles + account ids)
+**/.wrangler/
+.wrangler/
+
+# Secrets / local overrides
+.env
+.env.*
+!.env.example
+*.local
+*.bak
+*.orig
+*.rej
+
+# Logs
+*.log
+*.hprof
+npm-debug.log*
+yarn-error.log*

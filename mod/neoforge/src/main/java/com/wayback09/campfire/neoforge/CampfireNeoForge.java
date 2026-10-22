@@ -34,9 +34,14 @@ public final class CampfireNeoForge {
     public CampfireNeoForge(IEventBus modBus, ModContainer modContainer) {
         var gameDir = FMLPaths.GAMEDIR.get();
 
+        // Resolve campfire.properties + system property overrides once, then
+        // hand them to every component that needs an endpoint.
+        var props = com.wayback09.campfire.CampfireProperties.load(gameDir);
+        com.wayback09.campfire.RelayClient.configure(props);
+
         screenshots = new ScreenshotStore(gameDir.resolve("screenshots"));
-        presence    = new PresenceManager(gameDir);
-        telemetry   = new TelemetryManager(gameDir, CONFIG);
+        presence    = new PresenceManager(gameDir, props);
+        telemetry   = new TelemetryManager(gameDir, CONFIG, props);
 
         // Anonymous launch telemetry
         String modVer = "0.1.0";
@@ -117,6 +122,9 @@ public final class CampfireNeoForge {
     // ---- Reset presence to MENU on disconnect ----
     @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        // Close any active relay tunnel, otherwise the hosted world keeps
+        // being exposed on the relay after the player leaves.
+        com.wayback09.campfire.RelayClient.closeActiveSession();
         presence.update(PresenceState.menu(getUsername()));
     }
 

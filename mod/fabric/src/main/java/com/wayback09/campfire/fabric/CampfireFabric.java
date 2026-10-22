@@ -23,9 +23,14 @@ public final class CampfireFabric implements ClientModInitializer {
     public void onInitializeClient() {
         var gameDir = FabricLoader.getInstance().getGameDir();
 
+        // Resolve campfire.properties + system property overrides once, then
+        // hand them to every component that needs an endpoint.
+        var props = com.wayback09.campfire.CampfireProperties.load(gameDir);
+        com.wayback09.campfire.RelayClient.configure(props);
+
         screenshots = new ScreenshotStore(gameDir.resolve("screenshots"));
-        presence = new PresenceManager(gameDir);
-        telemetry = new TelemetryManager(gameDir, CONFIG);
+        presence = new PresenceManager(gameDir, props);
+        telemetry = new TelemetryManager(gameDir, CONFIG, props);
 
         // Send anonymous launch telemetry event
         String modVer = FabricLoader.getInstance().getModContainer("campfire")

@@ -19,7 +19,7 @@ public class PlayerListHudMixin {
         if (entry != null && entry.getProfile() != null) {
             Text original = cir.getReturnValue();
             if (original != null) {
-                Text modified = CampfireBadge.applyBadge(original, entry.getProfile().getId(), entry.getProfile().getName());
+                Text modified = CampfireBadge.applyBadge(original, entry.getProfile().id(), entry.getProfile().name());
                 if (modified != original) {
                     cir.setReturnValue(modified);
                 }

@@ -1,7 +1,19 @@
 [versions]
-fabricApi = "0.133.0+1.21.8"
-yacl = "3.6.5+1.21.4-fabric"
-modmenu = "14.0.0"
+# Fabric / Minecraft target. Kept in sync with gradle.properties so the
+# version catalog and the build properties never drift apart.
+minecraft = "1.21.11"
+yarn = "1.21.11+build.6"
+yarnMappings = "v2"
+fabricLoader = "0.19.5"
+fabricApi = "0.141.6+1.21.11"
+yacl = "3.8.1+1.21.11-fabric"
+modmenu = "17.0.1"
+
+# NeoForge target (independent Minecraft line).
+neoforge = "21.1.172"
+yaclNeoforge = "3.8.1+1.21.1-neoforge"
+
+# Optional backend libraries. Not wired into the build yet - see docs/libraries.md.
 javalin = "6.3.0"
 sqliteJdbc = "3.46.1.0"
 hikari = "5.1.0"
@@ -11,8 +23,12 @@ discordIpc = "1.2.1"
 javaJwt = "4.4.0"
 
 [libraries]
+minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
+yarn = { module = "net.fabricmc:yarn", version.ref = "yarn" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabricLoader" }
 fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi" }
 yacl = { module = "dev.isxander:yet-another-config-lib", version.ref = "yacl" }
+yacl-neoforge = { module = "dev.isxander:yet-another-config-lib", version.ref = "yaclNeoforge" }
 modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
 javalin = { module = "io.javalin:javalin", version.ref = "javalin" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }

@@ -23,8 +23,12 @@ public final class TelemetryManager {
     private String installId;
 
     public TelemetryManager(Path runDir, CampfireConfig config) {
+        this(runDir, config, CampfireProperties.load(runDir));
+    }
+
+    public TelemetryManager(Path runDir, CampfireConfig config, CampfireProperties props) {
         this.installIdPath = runDir.resolve("campfire/install_id.txt");
-        this.apiUrl = System.getProperty("campfire.social_url", DEFAULT_URL).replaceAll("/+$", "");
+        this.apiUrl = props.get(PresenceManager.PROP_SOCIAL_URL, DEFAULT_URL).replaceAll("/+$", "");
         this.config = config;
         this.installId = loadOrCreateInstallId();
     }
@@ -86,15 +90,15 @@ public final class TelemetryManager {
                           : "other";
                 String javaVer = System.getProperty("java.version", "21");
 
-                String payload = "{\n"
-                    + "  \"installId\": \"" + escape(installId) + "\",\n"
-                    + "  \"event\": \"" + escape(eventName) + "\",\n"
-                    + "  \"modVersion\": \"" + escape(modVersion) + "\",\n"
-                    + "  \"mcVersion\": \"" + escape(mcVersion) + "\",\n"
-                    + "  \"loader\": \"" + escape(loader) + "\",\n"
-                    + "  \"os\": \"" + escape(os) + "\",\n"
-                    + "  \"java\": \"" + escape(javaVer) + "\",\n"
-                    + "  \"details\": " + (detailsJson != null ? detailsJson : "{}") + "\n"
+                String payload = "{"
+                    + "\"installId\":" + CampfireJson.quote(installId) + ","
+                    + "\"event\":" + CampfireJson.quote(eventName) + ","
+                    + "\"modVersion\":" + CampfireJson.quote(modVersion) + ","
+                    + "\"mcVersion\":" + CampfireJson.quote(mcVersion) + ","
+                    + "\"loader\":" + CampfireJson.quote(loader) + ","
+                    + "\"os\":" + CampfireJson.quote(os) + ","
+                    + "\"java\":" + CampfireJson.quote(javaVer) + ","
+                    + "\"details\":" + (detailsJson != null ? detailsJson : "{}")
                     + "}";
 
                 HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl + "/telemetry/event").toURL().openConnection();
@@ -110,9 +114,5 @@ public final class TelemetryManager {
                 // Silently ignore telemetry transmission failures
             }
         });
-    }
-
-    private static String escape(String s) {
-        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

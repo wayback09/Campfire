@@ -161,24 +161,31 @@ public final class SocialScreen extends Screen {
     }
 
     private static String validateMinecraftUsername(String username) {
+        HttpURLConnection conn = null;
         try {
             URI uri = URI.create("https://api.mojang.com/users/profiles/minecraft/" + username);
-            HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
+            conn = (HttpURLConnection) uri.toURL().openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(4000);
             conn.setReadTimeout(4000);
             if (conn.getResponseCode() == 200) {
-                String json = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                int nameIdx = json.indexOf("\"name\": \"");
-                if (nameIdx != -1) {
-                    int start = nameIdx + 9;
-                    int end = json.indexOf("\"", start);
-                    if (end != -1) return json.substring(start, end);
+                String json;
+                try (java.io.InputStream in = conn.getInputStream()) {
+                    json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
                 }
-                return username;
+                String name = com.wayback09.campfire.CampfireJson.getString(
+                        com.wayback09.campfire.CampfireJson.parseObjectOrEmpty(json), "name", "");
+                return name.isBlank() ? username : name;
             }
-        } catch (Exception ignored) {}
-        return null;
+            // 204 / 404 means the account does not exist.
+            return username;
+        } catch (Exception ignored) {
+            return username;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
     }
 
     @Override

@@ -110,11 +110,16 @@ func main() {
 	log.Printf("Minecraft Virtual-Host & Tunnel Multiplexer Active")
 	log.Printf("==================================================")
 
+	serve(listener)
+}
+
+// serve accepts and dispatches incoming connections until the listener is closed.
+func serve(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Printf("[WARN] Accept error: %v", err)
-			continue
+			return
 		}
 		go handleIncoming(conn)
 	}
@@ -537,10 +542,13 @@ func readVarInt(r io.Reader) (int, []byte, error) {
 	return val, raw, nil
 }
 
+// randInt returns a non-negative random value used to build unique guest IDs.
+// The sign bit is shifted out because callers embed the result in an opaque
+// identifier string, where a leading "-" is surprising and unnecessary.
 func randInt() int64 {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
 		return time.Now().UnixNano()
 	}
-	return int64(binary.BigEndian.Uint64(b))
+	return int64(binary.BigEndian.Uint64(b) >> 1)
 }

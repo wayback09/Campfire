@@ -1,10 +1,12 @@
 package com.wayback09.campfire.fabric;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 
 /**
@@ -106,15 +108,16 @@ public class CampfireButton extends ClickableWidget {
     }
 
     @Override
-    public void onClick(double mouseX, double mouseY) {
+    public void onClick(Click click, boolean doubled) {
         this.onPress();
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
         if (!this.active || !this.visible) {
             return false;
         }
+        int keyCode = input.key();
         if (keyCode == 257 || keyCode == 32 || keyCode == 335) {
             this.playDownSound(MinecraftClient.getInstance().getSoundManager());
             return true;
