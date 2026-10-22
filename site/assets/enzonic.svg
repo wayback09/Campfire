@@ -1,0 +1,50 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="enzTop" x1="0%" y1="0%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#e2ff54"/>
+      <stop offset="100%" stop-color="#b2ff00"/>
+    </linearGradient>
+    <linearGradient id="enzTopBevel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#84cc16"/>
+      <stop offset="100%" stop-color="#365314"/>
+    </linearGradient>
+    <linearGradient id="enzSpine" x1="0%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#d9ff38"/>
+      <stop offset="45%" stop-color="#b2ff00"/>
+      <stop offset="100%" stop-color="#65a30d"/>
+    </linearGradient>
+    <linearGradient id="enzMid" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#b2ff00"/>
+      <stop offset="100%" stop-color="#65a30d"/>
+    </linearGradient>
+    <linearGradient id="enzMidBevel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4d7c0f"/>
+      <stop offset="100%" stop-color="#1e3a07"/>
+    </linearGradient>
+    <linearGradient id="enzBot" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d9ff38"/>
+      <stop offset="60%" stop-color="#b2ff00"/>
+      <stop offset="100%" stop-color="#4d7c0f"/>
+    </linearGradient>
+    <linearGradient id="enzBotBevel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#365314"/>
+      <stop offset="100%" stop-color="#142603"/>
+    </linearGradient>
+    <filter id="enzGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#b2ff00" flood-opacity="0.85"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3.2" flood-color="#b2ff00" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <g filter="url(#enzGlow)">
+    <path d="M 8.5 4 L 27.5 4 L 22.5 9.5 L 12.5 9.5 Z" fill="url(#enzTop)"/>
+    <path d="M 12.5 9.5 L 22.5 9.5 L 20 12 L 11.5 12 Z" fill="url(#enzTopBevel)"/>
+    <path d="M 8.5 4 L 13.5 4 L 7 31 L 2 31 Z" fill="url(#enzSpine)"/>
+    <path d="M 10.5 14.5 L 23 14.5 L 19 18.5 L 9 18.5 Z" fill="url(#enzMid)"/>
+    <path d="M 9 18.5 L 19 18.5 L 17.5 20.5 L 8.2 20.5 Z" fill="url(#enzMidBevel)"/>
+    <path d="M 7.5 24.5 L 27.5 24.5 L 23.5 29 L 4 29 Z" fill="url(#enzBot)"/>
+    <path d="M 4 29 L 23.5 29 L 21.5 31 L 2 31 Z" fill="url(#enzBotBevel)"/>
+    <circle cx="27.5" cy="17.5" r="2.2" fill="#ffffff"/>
+  </g>
+</svg>
