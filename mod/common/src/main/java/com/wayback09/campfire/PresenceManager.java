@@ -8,9 +8,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,6 +33,9 @@ import java.util.concurrent.CompletableFuture;
 public final class PresenceManager {
     public static final String DEFAULT_URL = "https://campfire-social.wayback145b.workers.dev";
     public static final String PROP_SOCIAL_URL = "campfire.social_url";
+
+    /** Mirrors the social worker's 90-second freshness window. */
+    static final long PRESENCE_TTL_MS = 90_000L;
 
     private final Path presencePath;
     private final Path pendingInvitePath;
@@ -61,6 +69,26 @@ public final class PresenceManager {
         } catch (IOException ignored) {}
 
         // 2. Broadcast to Cloudflare / SocialServer asynchronously
+        postPresenceAsync(state);
+    }
+
+    /**
+     * Re-sends the current presence so the backend keeps it alive.
+     *
+     * <p>The worker expires presence rows after ~90 seconds, so a client that
+     * stays in a world must heartbeat or it will be treated as offline. That
+     * previously made friends (and the flame badge) flicker offline after a
+     * couple of minutes.
+     */
+    public void heartbeat() {
+        PresenceState state = this.current;
+        if (state != null) {
+            postPresenceAsync(state);
+        }
+    }
+
+    private void postPresenceAsync(PresenceState state) {
+        final String json = toJson(state);
         CompletableFuture.runAsync(() -> {
             try {
                 HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl + "/presence").toURL().openConnection();
@@ -69,7 +97,7 @@ public final class PresenceManager {
                 conn.setReadTimeout(3000);
                 conn.setDoOutput(true);
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.getOutputStream().write(toJson(state).getBytes(StandardCharsets.UTF_8));
+                conn.getOutputStream().write(json.getBytes(StandardCharsets.UTF_8));
                 conn.getResponseCode();
                 conn.disconnect();
             } catch (Exception ignored) {}
@@ -190,6 +218,79 @@ public final class PresenceManager {
             fallback.add(new FriendPresence(f, "MENU", "", "", 0));
         }
         return fallback;
+    }
+
+    /**
+     * Looks up which of the supplied usernames currently have live Campfire
+     * presence. Used to badge other Campfire users in the tab list and above
+     * their nametags, so badge visibility is mutual instead of depending on the
+     * viewer's local friends list.
+     *
+     * @return lowercase usernames that are online, {@link Optional#empty()} if
+     *         the backend could not be reached (callers should keep their
+     *         previous cache instead of clearing it)
+     */
+    public Optional<Set<String>> fetchOnlineUsernames(Collection<String> usernames) {
+        if (usernames == null || usernames.isEmpty()) {
+            return Optional.of(Collections.emptySet());
+        }
+
+        StringBuilder sb = new StringBuilder("{\"usernames\":[");
+        int count = 0;
+        for (String username : usernames) {
+            if (username == null || username.isBlank()) continue;
+            if (count++ > 0) sb.append(',');
+            sb.append(CampfireJson.quote(username));
+        }
+        sb.append("]}");
+        if (count == 0) return Optional.of(Collections.emptySet());
+
+        try {
+            HttpURLConnection conn = (HttpURLConnection) URI.create(apiUrl + "/presence/query").toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(3000);
+            conn.setReadTimeout(3000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.getOutputStream().write(sb.toString().getBytes(StandardCharsets.UTF_8));
+
+            if (conn.getResponseCode() == 200) {
+                Set<String> online = parseOnlineUsernames(readStream(conn.getInputStream()));
+                conn.disconnect();
+                return Optional.of(online);
+            }
+            conn.disconnect();
+        } catch (Exception ignored) {}
+        return Optional.empty();
+    }
+
+    /** Parses a {@code /presence/query} response into live lowercase usernames. */
+    static Set<String> parseOnlineUsernames(String json) {
+        Set<String> online = new HashSet<>();
+        Object parsed = CampfireJson.parseOrNull(json);
+        if (!(parsed instanceof Map<?, ?> root)) return online;
+
+        Object results = root.get("results");
+        if (!(results instanceof List<?> entries)) return online;
+
+        long now = System.currentTimeMillis();
+        for (Object entry : entries) {
+            if (!(entry instanceof Map<?, ?> raw)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> obj = (Map<String, Object>) raw;
+
+            String user = CampfireJson.getString(obj, "username", "");
+            String status = CampfireJson.getString(obj, "status", "OFFLINE");
+            long updatedAt = CampfireJson.getLong(obj, "updatedAt", 0);
+
+            if (user.isBlank() || "OFFLINE".equalsIgnoreCase(status)) continue;
+            // Some backends leave stale rows behind; honour the same window
+            // the Cloudflare worker uses.
+            if (updatedAt > 0 && now - updatedAt > PRESENCE_TTL_MS) continue;
+
+            online.add(user.toLowerCase(Locale.ROOT));
+        }
+        return online;
     }
 
     private static List<FriendPresence> parsePresenceList(String json) {

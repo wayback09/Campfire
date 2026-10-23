@@ -50,7 +50,19 @@ public final class CampfireFabric implements ClientModInitializer {
         // Never block the client render loop with synchronous network calls!
         final int[] tickCounter = {0};
         final boolean[] isPollingInvites = {false};
+        final long[] lastHeartbeat = {System.currentTimeMillis()};
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // Keep the live "who is a Campfire user" cache fresh for badges.
+            CampfireBadge.tick(client);
+
+            // The social backend expires presence after ~90 seconds, so
+            // heartbeat while in a world or other clients stop seeing us.
+            if (client.getNetworkHandler() != null
+                && System.currentTimeMillis() - lastHeartbeat[0] > 45_000L) {
+                lastHeartbeat[0] = System.currentTimeMillis();
+                presence.heartbeat();
+            }
+
             if (++tickCounter[0] < 60) return;
             tickCounter[0] = 0;
 
@@ -72,6 +84,7 @@ public final class CampfireFabric implements ClientModInitializer {
 
         // Update presence on server join
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            CampfireBadge.reset();
             if (pendingHostWorld) {
                 pendingHostWorld = false;
                 client.execute(() -> {
@@ -93,6 +106,7 @@ public final class CampfireFabric implements ClientModInitializer {
 
         // Reset presence to MENU on disconnect and close active relay tunnel
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            CampfireBadge.reset();
             com.wayback09.campfire.RelayClient.closeActiveSession();
             presence.update(PresenceState.menu(getUsername()));
         });
